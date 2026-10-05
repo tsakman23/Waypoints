@@ -36,9 +36,25 @@ export async function proxy(request: NextRequest) {
 
   // Validates the token and triggers a refresh when needed. Must run before
   // the response is returned, or refreshed cookies would be lost.
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
+  const signedIn = Boolean(data?.claims);
+
+  const { pathname } = request.nextUrl;
+  const isPublic = pathname === "/login" || pathname.startsWith("/auth/");
+
+  if (!signedIn && !isPublic) return redirectTo("/login", request, response);
+  if (signedIn && pathname === "/login") return redirectTo("/", request, response);
 
   return response;
+}
+
+/** Redirect, keeping any cookies the session refresh just set. */
+function redirectTo(path: string, request: NextRequest, response: NextResponse) {
+  const redirect = NextResponse.redirect(new URL(path, request.url));
+  for (const cookie of response.cookies.getAll()) {
+    redirect.cookies.set(cookie);
+  }
+  return redirect;
 }
 
 export const config = {
