@@ -23,6 +23,10 @@ export type Item = {
   effort: Score;
 };
 
+/** What the app sends when creating or editing; the database assigns ids. */
+export type ItemInput = Omit<Item, "id">;
+export type CategoryInput = Omit<Category, "id">;
+
 /** An edge: `item_id` can't start until `depends_on_id` is done. */
 export type Dependency = {
   item_id: string;
