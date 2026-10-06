@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { nextUp, unlockBoost, unlockedGoals } from "./scoring.ts";
+import { nextUp, recommendedPath, unlockBoost, unlockedGoals } from "./scoring.ts";
 import { dependentsOf } from "./graph.ts";
 import type { Dependency, Item, Score, Status } from "./types.ts";
 
@@ -96,4 +96,28 @@ test("done, blocked and parked items are left out", () => {
     ranked.map((s) => s.item.id),
     ["open"],
   );
+});
+
+test("recommended path starts at the top suggestion and follows the best branch", () => {
+  // basics unlocks both rust (-> compiler) and a small side quest.
+  const items = [
+    item("basics", 3, 3, 1),
+    item("rust", 3, 3, 3),
+    item("compiler", 5, 5, 5),
+    item("side", 4, 4, 2),
+    item("standalone", 1, 1, 5),
+  ];
+  const deps = [
+    edge("rust", "basics"),
+    edge("compiler", "rust"),
+    edge("side", "basics"),
+  ];
+  // rust's branch is worth 6 + 10*0.5 = 11, side's only 8.
+  assert.deepEqual(recommendedPath(items, deps), ["basics", "rust", "compiler"]);
+});
+
+test("recommended path skips finished goals and is empty when nothing is available", () => {
+  const items = [item("a", 3, 3, 1), item("b", 3, 3, 1, "done")];
+  assert.deepEqual(recommendedPath(items, [edge("b", "a")]), ["a"]);
+  assert.deepEqual(recommendedPath([item("x", 3, 3, 1, "done")], []), []);
 });

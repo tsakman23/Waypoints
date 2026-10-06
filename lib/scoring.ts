@@ -62,6 +62,18 @@ export type Suggestion = {
   unlocks: Unlock[];
 };
 
+/** (value + boost) / effort for any item, available or not. */
+export function scoreOf(
+  item: Item,
+  itemsById: Map<string, Item>,
+  dependents: Map<string, string[]>,
+): Suggestion {
+  const value = valueOf(item);
+  const unlocks = unlockedGoals(item.id, itemsById, dependents);
+  const boost = unlocks.reduce((sum, u) => sum + u.contribution, 0);
+  return { item, value, boost, score: (value + boost) / item.effort, unlocks };
+}
+
 /**
  * Available, non-parked items ranked by (value + boost) / effort,
  * highest first.
@@ -73,11 +85,31 @@ export function nextUp(items: Item[], deps: Dependency[]): Suggestion[] {
 
   return items
     .filter((i) => i.status !== "parked" && isAvailable(i, itemsById, prereqs))
-    .map((item) => {
-      const value = valueOf(item);
-      const unlocks = unlockedGoals(item.id, itemsById, dependents);
-      const boost = unlocks.reduce((sum, u) => sum + u.contribution, 0);
-      return { item, value, boost, score: (value + boost) / item.effort, unlocks };
-    })
+    .map((item) => scoreOf(item, itemsById, dependents))
     .sort((a, b) => b.score - a.score);
+}
+
+/**
+ * The ids along the recommended route: the top Next-up item, then at each
+ * step the unfinished goal it unlocks whose branch is worth most (its own
+ * value plus everything it leads to), until there's nothing further.
+ * Empty when nothing is available.
+ */
+export function recommendedPath(items: Item[], deps: Dependency[]): string[] {
+  const [top] = nextUp(items, deps);
+  if (!top) return [];
+
+  const itemsById = new Map(items.map((i) => [i.id, i]));
+  const dependents = dependentsOf(deps);
+  const branchWorth = (item: Item) => valueOf(item) + unlockBoost(item.id, itemsById, dependents);
+
+  const path = [top.item.id];
+  for (;;) {
+    const next = (dependents.get(path[path.length - 1]) ?? [])
+      .map((id) => itemsById.get(id))
+      .filter((i): i is Item => i !== undefined && i.status !== "done" && !path.includes(i.id))
+      .sort((a, b) => branchWorth(b) - branchWorth(a))[0];
+    if (!next) return path;
+    path.push(next.id);
+  }
 }

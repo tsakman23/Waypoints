@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const LINKS = [
   { href: "/", label: "List" },
   { href: "/next", label: "Next up" },
+  { href: "/graph", label: "Graph" },
 ];
 
 /** The view links in the header, with the current one highlighted. */
