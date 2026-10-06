@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus } from "lucide-react";
+import { ItemEditor } from "@/components/item-editor";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -20,7 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { filterItems, NO_FILTERS, sortItems, type Filters, type Sort, type SortKey } from "@/lib/list";
-import { STATUSES, type Category, type Item } from "@/lib/types";
+import { STATUSES, type Category, type Dependency, type Item } from "@/lib/types";
 
 const COLUMNS: { key: SortKey; label: string; numeric?: boolean }[] = [
   { key: "title", label: "Title" },
@@ -31,9 +33,19 @@ const COLUMNS: { key: SortKey; label: string; numeric?: boolean }[] = [
   { key: "effort", label: "Effort", numeric: true },
 ];
 
-export function ItemList({ items, categories }: { items: Item[]; categories: Category[] }) {
+export function ItemList({
+  items,
+  categories,
+  dependencies,
+}: {
+  items: Item[];
+  categories: Category[];
+  dependencies: Dependency[];
+}) {
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [sort, setSort] = useState<Sort>({ key: "title", direction: "asc" });
+  // Which item the editor is open for: an id, "new", or closed.
+  const [editing, setEditing] = useState<string | "new" | null>(null);
 
   // Only recompute when the data, filters or sort actually change.
   const visible = useMemo(
@@ -94,7 +106,23 @@ export function ItemList({ items, categories }: { items: Item[]; categories: Cat
             ))}
           </SelectContent>
         </Select>
+        <Button className="ml-auto" onClick={() => setEditing("new")}>
+          <Plus />
+          New item
+        </Button>
       </div>
+
+      {editing && (
+        <ItemEditor
+          // A new key per item resets the form when switching between items.
+          key={editing}
+          item={editing === "new" ? undefined : items.find((i) => i.id === editing)}
+          items={items}
+          categories={categories}
+          dependencies={dependencies}
+          onClose={() => setEditing(null)}
+        />
+      )}
 
       <Table>
         <TableHeader>
@@ -122,8 +150,17 @@ export function ItemList({ items, categories }: { items: Item[]; categories: Cat
           {visible.map((item) => {
             const category = item.category_id ? categoriesById.get(item.category_id) : undefined;
             return (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.title}</TableCell>
+              <TableRow
+                key={item.id}
+                onClick={() => setEditing(item.id)}
+                className="cursor-pointer"
+              >
+                <TableCell className="font-medium">
+                  {/* A real button so the row can be opened from the keyboard too. */}
+                  <button type="button" className="text-left hover:underline">
+                    {item.title}
+                  </button>
+                </TableCell>
                 <TableCell>
                   {category ? (
                     <span className="inline-flex items-center gap-2">

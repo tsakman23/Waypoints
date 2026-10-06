@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
   const supabase = await createClient();
-  const [{ data: auth }, { items, categories }] = await Promise.all([
+  const [{ data: auth }, { items, categories, dependencies }] = await Promise.all([
     supabase.auth.getClaims(),
     getData(),
   ]);
@@ -24,7 +24,7 @@ export default async function Home() {
           </form>
         </div>
       </header>
-      <ItemList items={items} categories={categories} />
+      <ItemList items={items} categories={categories} dependencies={dependencies} />
     </main>
   );
 }
