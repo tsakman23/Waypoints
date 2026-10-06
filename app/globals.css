@@ -4,9 +4,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Maps the tokens below to Tailwind utilities (bg-card, text-cyan, font-heading, ...). */
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
+    --font-sans: var(--font-sora);
+    --font-heading: var(--font-orbitron);
+    --color-violet: var(--violet);
+    --color-cyan: var(--cyan);
+    --color-magenta: var(--magenta);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -47,83 +51,92 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Night Sky. Dark only: deep navy, glass surfaces, violet → cyan light. */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
-}
+    color-scheme: dark;
 
-.dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --void: #060818;
+    --night: #0c1030;
+    --violet: #8b6cff;
+    --cyan: #3ee0f5;
+    --magenta: #f472d0;
+    /* The signature gradient: buttons, the recommended path, selected states. */
+    --glow: linear-gradient(120deg, var(--violet), var(--cyan));
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+    --background: var(--void);
+    --foreground: #e8ebf7;
+    --card: rgb(16 20 52 / 0.55);
+    --card-foreground: #e8ebf7;
+    --popover: #0e1236;
+    --popover-foreground: #e8ebf7;
+    --primary: var(--violet);
+    --primary-foreground: #0a0d24;
+    --secondary: rgb(255 255 255 / 0.07);
+    --secondary-foreground: #e8ebf7;
+    --muted: rgb(255 255 255 / 0.05);
+    --muted-foreground: #9aa2c4;
+    --accent: rgb(255 255 255 / 0.08);
+    --accent-foreground: #e8ebf7;
+    --destructive: #ff5c7a;
+    --border: rgb(255 255 255 / 0.1);
+    --input: rgb(255 255 255 / 0.12);
+    --ring: var(--violet);
+    --chart-1: var(--violet);
+    --chart-2: var(--cyan);
+    --chart-3: var(--magenta);
+    --chart-4: #4f8bff;
+    --chart-5: #9aa2c4;
+    --radius: 0.75rem;
+    --sidebar: var(--night);
+    --sidebar-foreground: #e8ebf7;
+    --sidebar-primary: var(--violet);
+    --sidebar-primary-foreground: #0a0d24;
+    --sidebar-accent: rgb(255 255 255 / 0.08);
+    --sidebar-accent-foreground: #e8ebf7;
+    --sidebar-border: rgb(255 255 255 / 0.1);
+    --sidebar-ring: var(--violet);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
   body {
     @apply bg-background text-foreground;
-    }
+  }
   html {
     @apply font-sans;
-    }
+  }
+}
+
+/* --- Sky background (components/sky-background.tsx) ---------------------- */
+
+@keyframes sky-drift-1 { to { transform: translate(12%, 8%) scale(1.12); } }
+@keyframes sky-drift-2 { to { transform: translate(-10%, 14%) scale(0.92); } }
+@keyframes sky-drift-3 { to { transform: translate(-14%, -8%) scale(1.1); } }
+@keyframes sky-twinkle {
+  0%, 100% { opacity: var(--o, 0.4); }
+  50% { opacity: calc(var(--o, 0.4) * 0.25); }
+}
+@keyframes sky-shoot {
+  0%, 88% { opacity: 0; transform: translate(0, 0); }
+  90% { opacity: 0.8; }
+  96%, 100% { opacity: 0; transform: translate(-26vw, 14vh); }
+}
+
+.sky-nebula { position: absolute; border-radius: 9999px; filter: blur(80px); }
+.sky-nebula-1 { width: 46vw; height: 60vh; left: -8vw; top: 10vh; background: var(--violet); opacity: 0.28; animation: sky-drift-1 38s ease-in-out infinite alternate; }
+.sky-nebula-2 { width: 40vw; height: 50vh; right: -6vw; top: -12vh; background: var(--cyan); opacity: 0.14; animation: sky-drift-2 44s ease-in-out infinite alternate; }
+.sky-nebula-3 { width: 36vw; height: 46vh; right: 18vw; bottom: -20vh; background: var(--magenta); opacity: 0.12; animation: sky-drift-3 50s ease-in-out infinite alternate; }
+.sky-star { animation: sky-twinkle var(--t, 5s) ease-in-out infinite; animation-delay: var(--d, 0s); }
+.sky-shooting { animation: sky-shoot 15s linear infinite; opacity: 0; }
+
+/* Everyone who asks their OS for less motion gets a still sky and instant UI. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }
