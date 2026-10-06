@@ -9,17 +9,20 @@ export function valueOf(item: Item): number {
   return item.interest + item.impact;
 }
 
+/** One goal an item helps unlock, and how much of the boost it accounts for. */
+export type Unlock = { item: Item; distance: number; contribution: number };
+
 /**
- * The value of everything an item transitively unlocks, each unfinished
- * dependent counted once at its shortest distance and scaled by
- * DECAY ** distance.
+ * Every unfinished item this one transitively unlocks, each counted once at
+ * its shortest distance, contributing valueOf(goal) * DECAY ** distance.
+ * Largest contribution first.
  */
-export function unlockBoost(
+export function unlockedGoals(
   itemId: string,
   itemsById: Map<string, Item>,
   dependents: Map<string, string[]>,
-): number {
-  let boost = 0;
+): Unlock[] {
+  const unlocks: Unlock[] = [];
   const seen = new Set([itemId]);
   let frontier = [itemId];
   // Breadth-first, so the first time we reach an item is its shortest distance.
@@ -32,13 +35,22 @@ export function unlockBoost(
         next.push(depId);
         const dep = itemsById.get(depId);
         if (dep && dep.status !== "done") {
-          boost += valueOf(dep) * DECAY ** distance;
+          unlocks.push({ item: dep, distance, contribution: valueOf(dep) * DECAY ** distance });
         }
       }
     }
     frontier = next;
   }
-  return boost;
+  return unlocks.sort((a, b) => b.contribution - a.contribution);
+}
+
+/** The total of unlockedGoals: what an item is worth for what it leads to. */
+export function unlockBoost(
+  itemId: string,
+  itemsById: Map<string, Item>,
+  dependents: Map<string, string[]>,
+): number {
+  return unlockedGoals(itemId, itemsById, dependents).reduce((sum, u) => sum + u.contribution, 0);
 }
 
 export type Suggestion = {
@@ -46,6 +58,8 @@ export type Suggestion = {
   value: number;
   boost: number;
   score: number;
+  /** The goals behind the boost, largest contribution first. */
+  unlocks: Unlock[];
 };
 
 /**
@@ -61,8 +75,9 @@ export function nextUp(items: Item[], deps: Dependency[]): Suggestion[] {
     .filter((i) => i.status !== "parked" && isAvailable(i, itemsById, prereqs))
     .map((item) => {
       const value = valueOf(item);
-      const boost = unlockBoost(item.id, itemsById, dependents);
-      return { item, value, boost, score: (value + boost) / item.effort };
+      const unlocks = unlockedGoals(item.id, itemsById, dependents);
+      const boost = unlocks.reduce((sum, u) => sum + u.contribution, 0);
+      return { item, value, boost, score: (value + boost) / item.effort, unlocks };
     })
     .sort((a, b) => b.score - a.score);
 }

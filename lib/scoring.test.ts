@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { nextUp, unlockBoost } from "./scoring.ts";
+import { nextUp, unlockBoost, unlockedGoals } from "./scoring.ts";
 import { dependentsOf } from "./graph.ts";
 import type { Dependency, Item, Score, Status } from "./types.ts";
 
@@ -37,6 +37,20 @@ test("an item reachable two ways counts once, at its shortest distance", () => {
   const byId = new Map(items.map((i) => [i.id, i]));
   // a: goal at distance 1 (8 * 0.5) + b at distance 1 (2 * 0.5).
   assert.equal(unlockBoost("a", byId, dependentsOf(deps)), 5);
+});
+
+test("lists what an item unlocks, largest contribution first", () => {
+  const items = [item("compiler", 5, 5, 5), item("rust", 2, 2, 3), item("basics", 1, 1, 1)];
+  const deps = [edge("compiler", "rust"), edge("rust", "basics")];
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const unlocks = unlockedGoals("basics", byId, dependentsOf(deps));
+  assert.deepEqual(
+    unlocks.map((u) => [u.item.id, u.distance, u.contribution]),
+    [
+      ["compiler", 2, 2.5],
+      ["rust", 1, 2],
+    ],
+  );
 });
 
 test("finished dependents add nothing", () => {
