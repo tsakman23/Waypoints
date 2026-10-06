@@ -37,6 +37,22 @@ export async function authenticate(
   redirect("/");
 }
 
+/**
+ * Starts "Continue with Google": asks Supabase for Google's sign-in page and
+ * sends the browser there. Google returns to Supabase, which returns to
+ * /auth/callback with a code.
+ */
+export async function signInWithGoogle() {
+  const origin = (await headers()).get("origin");
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${origin}/auth/callback` },
+  });
+  if (error) redirect("/login?error=" + encodeURIComponent(error.message));
+  redirect(data.url);
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
