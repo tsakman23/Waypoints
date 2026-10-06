@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Tags } from "lucide-react";
+import { CategoryManager } from "@/components/category-manager";
 import { ItemEditor } from "@/components/item-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ export function ItemList({
   const [sort, setSort] = useState<Sort>({ key: "title", direction: "asc" });
   // Which item the editor is open for: an id, "new", or closed.
   const [editing, setEditing] = useState<string | "new" | null>(null);
+  const [managingCategories, setManagingCategories] = useState(false);
 
   // Only recompute when the data, filters or sort actually change.
   const visible = useMemo(
@@ -106,11 +108,25 @@ export function ItemList({
             ))}
           </SelectContent>
         </Select>
-        <Button className="ml-auto" onClick={() => setEditing("new")}>
-          <Plus />
-          New item
-        </Button>
+        <div className="ml-auto flex gap-2">
+          <Button variant="outline" onClick={() => setManagingCategories(true)}>
+            <Tags />
+            Categories
+          </Button>
+          <Button onClick={() => setEditing("new")}>
+            <Plus />
+            New item
+          </Button>
+        </div>
       </div>
+
+      {managingCategories && (
+        <CategoryManager
+          categories={categories}
+          items={items}
+          onClose={() => setManagingCategories(false)}
+        />
+      )}
 
       {editing && (
         <ItemEditor
