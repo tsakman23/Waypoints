@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { filterItems, NO_FILTERS, sortItems } from "./list.ts";
 import type { Category, Item } from "./types.ts";
 
-const music: Category = { id: "music", name: "Music", color: "#e11d48" };
-const code: Category = { id: "code", name: "Software", color: "#2563eb" };
+const music: Category = { id: "music", name: "Music", color: "#e11d48", skill_type: "instrument", resurface_days: 42 };
+const code: Category = { id: "code", name: "Software", color: "#2563eb", skill_type: "technical", resurface_days: 28 };
 
 const items: Item[] = [
   { id: "1", title: "Learn Rust", notes: "", category_id: "code", status: "active", interest: 5, impact: 4, effort: 3 },

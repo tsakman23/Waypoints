@@ -20,7 +20,7 @@ export async function getData(): Promise<Data> {
       .from("items")
       .select("id, title, notes, category_id, status, interest, impact, effort")
       .order("created_at"),
-    supabase.from("categories").select("id, name, color").order("name"),
+    supabase.from("categories").select("id, name, color, skill_type, resurface_days").order("name"),
     supabase.from("dependencies").select("item_id, depends_on_id"),
   ]);
 
