@@ -69,7 +69,9 @@ export function layoutGraph(
   return new Map(
     nodes.map((n) => {
       const box = sizes.get(n.id)!;
-      return [n.id, { x: (n.x ?? 0) - box.width / 2, y: (n.y ?? 0) - box.height / 2 }];
+      // Whole pixels: the server and browser then write identical
+      // `translate(...)` strings, so React's hydration check matches.
+      return [n.id, { x: Math.round((n.x ?? 0) - box.width / 2), y: Math.round((n.y ?? 0) - box.height / 2) }];
     }),
   );
 }

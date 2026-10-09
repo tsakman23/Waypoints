@@ -40,6 +40,13 @@ test("no two boxes overlap", () => {
   }
 });
 
+test("positions are whole pixels", () => {
+  const positions = layoutGraph([box("compiler"), box("rust"), box("basics")], chain);
+  for (const { x, y } of positions.values()) {
+    assert.ok(Number.isInteger(x) && Number.isInteger(y), `${x}, ${y} isn't whole`);
+  }
+});
+
 test("the same input always gives the same layout", () => {
   const boxes = [box("compiler"), box("rust"), box("basics"), box("x", "music")];
   assert.deepEqual(layoutGraph(boxes, chain), layoutGraph(boxes, chain));
