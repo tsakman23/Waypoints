@@ -48,22 +48,38 @@ test("sorts titles case-insensitively", () => {
   ]);
 });
 
-test("sorts status in workflow order, not alphabetically", () => {
-  assert.deepEqual(ids(sortItems(items, { key: "status", direction: "asc" }, [])), [
-    "2",
-    "1",
-    "4",
-    "3",
-  ]);
+test("sorts status active → idea → parked → done", () => {
+  assert.deepEqual(ids(sortItems(items, { key: "status", direction: "asc" }, [])), ["1", "2", "4", "3"]);
+  assert.deepEqual(ids(sortItems(items, { key: "status", direction: "desc" }, [])), ["3", "4", "2", "1"]);
 });
 
-test("sorts by category name, uncategorised first", () => {
-  assert.deepEqual(ids(sortItems(items, { key: "category", direction: "asc" }, [music, code])), [
-    "4",
-    "3",
-    "1",
-    "2",
-  ]);
+test("sorts by category name with uncategorised last, either direction", () => {
+  assert.deepEqual(ids(sortItems(items, { key: "category", direction: "asc" }, [music, code])), ["3", "1", "2", "4"]);
+  assert.deepEqual(ids(sortItems(items, { key: "category", direction: "desc" }, [music, code])), ["1", "2", "3", "4"]);
+});
+
+test("within a category, active work comes first and done/parked sink", () => {
+  const software = (id: string, title: string, status: Item["status"]): Item => ({
+    id, title, notes: "", category_id: "code", status, interest: 3, impact: 3, effort: 3,
+  });
+  const mixed = [
+    software("a", "Alpha", "done"),
+    software("b", "Bravo", "parked"),
+    software("c", "Charlie", "idea"),
+    software("d", "Delta", "active"),
+  ];
+  assert.deepEqual(ids(sortItems(mixed, { key: "category", direction: "asc" }, [code])), ["d", "c", "b", "a"]);
+});
+
+test("ties in any column fall back to status, then title, whatever the direction", () => {
+  const tied = (id: string, title: string, status: Item["status"]): Item => ({
+    id, title, notes: "", category_id: null, status, interest: 3, impact: 3, effort: 3,
+  });
+  const all = [tied("x", "Zebra", "done"), tied("y", "Apple", "idea"), tied("z", "Mango", "idea"), tied("w", "Kiwi", "active")];
+  // Every interest is 3, so the order comes entirely from the tie-breaks.
+  for (const direction of ["asc", "desc"] as const) {
+    assert.deepEqual(ids(sortItems(all, { key: "interest", direction }, [])), ["w", "y", "z", "x"]);
+  }
 });
 
 test("sorts scores descending", () => {

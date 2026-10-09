@@ -1,4 +1,4 @@
-import { STATUSES, type Category, type Item, type Status } from "./types.ts";
+import type { Category, Item, Status } from "./types.ts";
 
 export type Filters = {
   /** "all", "none" (uncategorised) or a category id. */
@@ -27,32 +27,49 @@ export function filterItems(items: Item[], filters: Filters): Item[] {
   );
 }
 
+/** How far up the list a status belongs: what you're doing first, finished last. */
+const STATUS_RANK: Record<Status, number> = { active: 0, idea: 1, parked: 2, done: 3 };
+
+/** The list's starting order: active work at the top, done at the bottom. */
+export const DEFAULT_SORT: Sort = { key: "status", direction: "asc" };
+
+const compareText = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" });
+
+/**
+ * Sorts by the chosen column; the direction flips only that comparison.
+ * Uncategorised items stay last whichever way categories are sorted, and
+ * ties always fall back to status (active first) and then title, so done and
+ * parked items sink within any group.
+ */
 export function sortItems(items: Item[], sort: Sort, categories: Category[]): Item[] {
   const categoryNames = new Map(categories.map((c) => [c.id, c.name]));
+  const categoryOf = (item: Item) => (item.category_id ? categoryNames.get(item.category_id) : undefined);
+  const direction = sort.direction === "asc" ? 1 : -1;
 
-  const sortValue = (item: Item): string | number => {
+  /** The chosen column's comparison, before any tie-breaking. */
+  function byColumn(a: Item, b: Item): number {
     switch (sort.key) {
       case "title":
-        return item.title;
-      case "category":
-        return item.category_id ? (categoryNames.get(item.category_id) ?? "") : "";
+        return compareText(a.title, b.title) * direction;
+      case "category": {
+        const x = categoryOf(a);
+        const y = categoryOf(b);
+        // Uncategorised last, regardless of direction.
+        if (x === undefined || y === undefined) return Number(x === undefined) - Number(y === undefined);
+        return compareText(x, y) * direction;
+      }
       case "status":
-        // Workflow order (idea, active, parked, done), not alphabetical.
-        return STATUSES.indexOf(item.status);
+        return (STATUS_RANK[a.status] - STATUS_RANK[b.status]) * direction;
       default:
-        return item[sort.key];
+        return (a[sort.key] - b[sort.key]) * direction;
     }
-  };
+  }
 
-  const direction = sort.direction === "asc" ? 1 : -1;
   // Copy first: sort() reorders in place, and the input may be React state.
-  return [...items].sort((a, b) => {
-    const x = sortValue(a);
-    const y = sortValue(b);
-    const order =
-      typeof x === "string" && typeof y === "string"
-        ? x.localeCompare(y, undefined, { sensitivity: "base" })
-        : Number(x) - Number(y);
-    return order * direction;
-  });
+  return [...items].sort(
+    (a, b) =>
+      byColumn(a, b) ||
+      STATUS_RANK[a.status] - STATUS_RANK[b.status] ||
+      compareText(a.title, b.title),
+  );
 }

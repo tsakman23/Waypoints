@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { filterItems, NO_FILTERS, sortItems, type Filters, type Sort, type SortKey } from "@/lib/list";
+import { DEFAULT_SORT, filterItems, NO_FILTERS, sortItems, type Filters, type Sort, type SortKey } from "@/lib/list";
 import { STATUSES, type Category, type Dependency, type Item } from "@/lib/types";
 
 const COLUMNS: { key: SortKey; label: string; numeric?: boolean }[] = [
@@ -44,7 +44,7 @@ export function ItemList({
   dependencies: Dependency[];
 }) {
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
-  const [sort, setSort] = useState<Sort>({ key: "title", direction: "asc" });
+  const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   // Which item the editor is open for: an id, "new", or closed.
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [managingCategories, setManagingCategories] = useState(false);
