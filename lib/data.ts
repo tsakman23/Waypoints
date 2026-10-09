@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Category, Dependency, Item } from "@/lib/types";
+import type { Category, Dependency, Item, Profile } from "@/lib/types";
 
 export type Data = {
   items: Item[];
@@ -32,4 +32,16 @@ export async function getData(): Promise<Data> {
     categories: categories.data ?? [],
     dependencies: dependencies.data ?? [],
   };
+}
+
+/** The signed-in user's settings, or null before the setup wizard is done. */
+export async function getProfile(): Promise<Profile | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("weekday_minutes, weekend_minutes, session_minutes, weekend_days, timezone, animate_orbits, last_check_in")
+    // At most one row, and RLS means it can only be the user's own.
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
 }

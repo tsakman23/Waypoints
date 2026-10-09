@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { wouldCreateCycle } from "@/lib/graph";
 import { createClient } from "@/lib/supabase/server";
-import type { CategoryInput, ItemInput } from "@/lib/types";
+import { isValidTimeZone } from "@/lib/profile";
+import type { CategoryInput, ItemInput, Profile } from "@/lib/types";
 
 // Server actions can be called with any payload, not just what our forms
 // send. Row-level security still guarantees users can only touch their own
@@ -105,6 +106,45 @@ export async function removeDependency(itemId: string, dependsOnId: string): Pro
     .delete()
     .eq("item_id", itemId)
     .eq("depends_on_id", dependsOnId);
+  if (error) return { error: error.message };
+  return refresh();
+}
+
+// Profile ---------------------------------------------------------------------
+
+/** The settings the wizard and settings page edit (not the check-in state). */
+export type ProfileInput = Omit<Profile, "last_check_in">;
+
+/** Creates the profile on first save, updates it afterwards. */
+export async function saveProfile(input: ProfileInput): Promise<ActionResult> {
+  const inRange = (n: number, min: number, max: number) => Number.isInteger(n) && n >= min && n <= max;
+  if (!inRange(input.weekday_minutes, 0, 1440) || !inRange(input.weekend_minutes, 0, 1440)) {
+    return { error: "Daily time must be between 0 and 24 hours." };
+  }
+  if (!inRange(input.session_minutes, 15, 480)) {
+    return { error: "A session must be between 15 minutes and 8 hours." };
+  }
+  if (!input.weekend_days.every((d) => inRange(d, 0, 6))) {
+    return { error: "Weekend days must be days of the week." };
+  }
+  if (!isValidTimeZone(input.timezone)) {
+    return { error: `"${input.timezone}" isn't a timezone this app recognises.` };
+  }
+
+  const supabase = await createClient();
+  // user_id defaults to the signed-in user, so this is "insert mine, or
+  // update mine if it exists".
+  const { error } = await supabase.from("profiles").upsert(
+    {
+      weekday_minutes: input.weekday_minutes,
+      weekend_minutes: input.weekend_minutes,
+      session_minutes: input.session_minutes,
+      weekend_days: [...new Set(input.weekend_days)].sort(),
+      timezone: input.timezone,
+      animate_orbits: input.animate_orbits,
+    },
+    { onConflict: "user_id" },
+  );
   if (error) return { error: error.message };
   return refresh();
 }

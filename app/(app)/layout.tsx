@@ -1,11 +1,15 @@
+import Link from "next/link";
+import { Settings } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { NavLinks } from "@/components/nav-links";
+import { SetupWizard } from "@/components/setup-wizard";
+import { getProfile } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 
-/** Floating glass header over every signed-in view. */
+/** Floating glass header over every signed-in view, and first-run setup. */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const [{ data }, profile] = await Promise.all([supabase.auth.getClaims(), getProfile()]);
 
   return (
     <>
@@ -24,6 +28,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <NavLinks />
         <div className="ml-auto flex items-center gap-3 whitespace-nowrap text-muted-foreground">
           <span className="hidden truncate md:inline">{data?.claims.email}</span>
+          <Link
+            href="/settings"
+            aria-label="Settings"
+            className="rounded-full p-1.5 transition-[color,transform] duration-300 ease-(--ease-out) hover:rotate-45 hover:text-foreground"
+          >
+            <Settings className="size-4" />
+          </Link>
           <form action={signOut}>
             <button
               type="submit"
@@ -35,6 +46,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 pt-24 pb-12 sm:px-8">{children}</main>
+      {/* No profile yet means first visit: ask the setup questions. */}
+      {!profile && <SetupWizard />}
     </>
   );
 }
