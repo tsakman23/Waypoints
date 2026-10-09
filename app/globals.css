@@ -132,6 +132,42 @@
 .sky-star { animation: sky-twinkle var(--t, 5s) ease-in-out infinite; animation-delay: var(--d, 0s); }
 .sky-shooting { animation: sky-shoot 15s linear infinite; opacity: 0; }
 
+/* --- Shared component effects ---------------------------------------------- */
+
+/* A light sweep across a primary button on hover. */
+.wp-sheen { position: relative; overflow: hidden; }
+.wp-sheen::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-120%);
+  background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.5) 50%, transparent 70%);
+  transition: transform 650ms var(--ease-out);
+}
+.wp-sheen:hover::after { transform: translateX(120%); }
+
+/* Glass panels: translucent navy with the sky blurred behind. */
+.wp-glass { background: var(--card); backdrop-filter: blur(20px) saturate(140%); border: 1px solid var(--border); }
+
+/* Interactive cards: lift, gradient border and glow on hover. --c tints the glow. */
+.wp-card-hover {
+  border: 1px solid var(--border);
+  transition: transform 280ms var(--ease-out), box-shadow 280ms var(--ease-out), border-color 280ms var(--ease-out);
+}
+.wp-card-hover:hover {
+  transform: translateY(-3px);
+  border-color: transparent;
+  background: linear-gradient(rgb(12 16 44 / 0.92), rgb(12 16 44 / 0.92)) padding-box, var(--glow) border-box;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 0.45), 0 0 26px rgb(139 108 255 / 0.18);
+}
+
+/* A category dot that glows, brighter when its card or row is hovered. */
+.wp-dot { width: 10px; height: 10px; border-radius: 9999px; flex: none; background: var(--c); box-shadow: 0 0 8px var(--c); transition: box-shadow 280ms var(--ease-out); }
+.wp-card-hover:hover .wp-dot, .wp-row:hover .wp-dot { box-shadow: 0 0 14px var(--c), 0 0 26px var(--c); }
+
+/* List rows: a soft highlight and a glowing edge on the left. */
+.wp-row { transition: background-color 220ms var(--ease-out); }
+.wp-row:hover { background-color: rgb(139 108 255 / 0.1); }
+.wp-row > td:first-child { transition: box-shadow 260ms var(--ease-out); }
+.wp-row:hover > td:first-child { box-shadow: inset 2px 0 0 var(--cyan), inset 10px 0 14px -10px var(--cyan); }
+
 /* --- Graph (components/graph-view.tsx) ------------------------------------ */
 
 /* Let the sky show through React Flow's canvas. */

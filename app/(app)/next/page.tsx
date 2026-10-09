@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getData } from "@/lib/data";
 import { nextUp, type Suggestion } from "@/lib/scoring";
@@ -61,27 +61,28 @@ function SuggestionCard({
   category?: Category;
 }) {
   return (
-    <Card>
+    <Card
+      className="wp-card-hover ring-0"
+      style={category ? ({ "--c": category.color } as React.CSSProperties) : undefined}
+    >
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <span className="text-2xl font-semibold text-muted-foreground tabular-nums">{rank}</span>
+          <span className="w-7 font-heading text-2xl font-bold text-muted-foreground tabular-nums">{rank}</span>
           <div className="flex flex-col gap-1">
             <CardTitle>{item.title}</CardTitle>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {category && (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2.5 rounded-full" style={{ backgroundColor: category.color }} />
+                  <span className="wp-dot" />
                   {category.name}
                 </span>
               )}
-              <Badge variant={item.status === "active" ? "default" : "secondary"} className="capitalize">
-                {item.status}
-              </Badge>
+              <StatusBadge status={item.status} />
             </div>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-semibold tabular-nums">{score.toFixed(1)}</div>
+          <div className="font-heading text-2xl font-bold tabular-nums">{score.toFixed(1)}</div>
           <div className="text-xs text-muted-foreground">score</div>
         </div>
       </CardHeader>

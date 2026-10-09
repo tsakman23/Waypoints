@@ -11,10 +11,17 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-4">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <h1 className="flex items-center gap-3 font-heading text-3xl font-bold tracking-wide">
+          <span className="size-2.5 rounded-full bg-cyan shadow-[0_0_14px_var(--cyan)]" />
+          Waypoints
+        </h1>
+        <p className="text-muted-foreground">Chart a course through everything you want to do.</p>
+      </div>
+      <Card className="w-full max-w-sm shadow-[0_24px_70px_rgb(0_0_0/0.45),0_0_40px_rgb(139_108_255/0.12)]">
         <CardHeader>
-          <CardTitle>Waypoints</CardTitle>
+          <CardTitle>Welcome</CardTitle>
           <CardDescription>Sign in or create an account.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">

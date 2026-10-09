@@ -30,10 +30,10 @@ export function ScorePicker({
             aria-checked={score === value}
             onClick={() => onChange(score)}
             className={cn(
-              "size-8 rounded-md border text-sm tabular-nums transition-colors",
+              "size-9 cursor-pointer rounded-lg border text-sm font-semibold tabular-nums transition-all duration-200 ease-(--ease-out)",
               score === value
-                ? "border-primary bg-primary text-primary-foreground"
-                : "hover:bg-muted",
+                ? "border-transparent bg-(image:--glow) text-primary-foreground shadow-[0_0_20px_rgb(139_108_255/0.45)]"
+                : "border-border bg-secondary text-muted-foreground hover:-translate-y-0.5 hover:border-cyan/50 hover:text-foreground hover:shadow-[0_0_16px_rgb(62_224_245/0.25)]",
             )}
           >
             {score}

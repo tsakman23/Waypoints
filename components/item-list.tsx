@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Tags } from "lucide-react";
 import { CategoryManager } from "@/components/category-manager";
 import { ItemEditor } from "@/components/item-editor";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -140,15 +140,17 @@ export function ItemList({
         />
       )}
 
+      {/* A glass panel keeps the table readable over the moving sky. */}
+      <div className="wp-glass overflow-hidden rounded-2xl px-2 py-1">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="hover:bg-transparent">
             {COLUMNS.map(({ key, label, numeric }) => (
               <TableHead key={key} className={numeric ? "text-right" : undefined}>
                 <button
                   type="button"
                   onClick={() => toggleSort(key, numeric)}
-                  className="inline-flex items-center gap-1 hover:text-foreground"
+                  className="inline-flex cursor-pointer items-center gap-1 text-xs tracking-wider text-muted-foreground uppercase transition-colors hover:text-foreground"
                 >
                   {label}
                   {sort.key === key &&
@@ -169,21 +171,21 @@ export function ItemList({
               <TableRow
                 key={item.id}
                 onClick={() => setEditing(item.id)}
-                className="cursor-pointer"
+                className="wp-row cursor-pointer hover:bg-transparent"
               >
                 <TableCell className="font-medium">
                   {/* A real button so the row can be opened from the keyboard too. */}
-                  <button type="button" className="text-left hover:underline">
+                  <button type="button" className="cursor-pointer text-left">
                     {item.title}
                   </button>
                 </TableCell>
                 <TableCell>
                   {category ? (
-                    <span className="inline-flex items-center gap-2">
-                      <span
-                        className="size-2.5 rounded-full"
-                        style={{ backgroundColor: category.color }}
-                      />
+                    <span
+                      className="inline-flex items-center gap-2"
+                      style={{ "--c": category.color } as React.CSSProperties}
+                    >
+                      <span className="wp-dot" />
                       {category.name}
                     </span>
                   ) : (
@@ -191,9 +193,7 @@ export function ItemList({
                   )}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={item.status === "active" ? "default" : "secondary"} className="capitalize">
-                    {item.status}
-                  </Badge>
+                  <StatusBadge status={item.status} />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{item.interest}</TableCell>
                 <TableCell className="text-right tabular-nums">{item.impact}</TableCell>
@@ -210,6 +210,7 @@ export function ItemList({
           )}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }

@@ -34,10 +34,10 @@ export function LoginForm({ initialError }: { initialError?: string }) {
       {state.message && <p className="text-sm text-muted-foreground">{state.message}</p>}
 
       <div className="flex gap-2">
-        <Button type="submit" name="intent" value="signin" disabled={pending}>
+        <Button type="submit" name="intent" value="signin" disabled={pending} className="flex-1">
           Sign in
         </Button>
-        <Button type="submit" name="intent" value="signup" variant="outline" disabled={pending}>
+        <Button type="submit" name="intent" value="signup" variant="outline" disabled={pending} className="flex-1">
           Create account
         </Button>
       </div>
