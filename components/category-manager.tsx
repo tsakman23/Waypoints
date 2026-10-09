@@ -13,7 +13,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import type { Category, Item } from "@/lib/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SKILL_PRESETS } from "@/lib/skills";
+import { SKILL_TYPES, type Category, type Item, type SkillType } from "@/lib/types";
 
 /** Rename, recolour, delete and add categories. Mounted only while open. */
 export function CategoryManager({
@@ -27,18 +29,18 @@ export function CategoryManager({
 }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Categories</DialogTitle>
           <DialogDescription>Deleting a category leaves its items uncategorised.</DialogDescription>
         </DialogHeader>
 
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-5">
           {categories.map((category) => (
             <CategoryRow
-              // Keyed by name and colour too, so the row's drafts reset
+              // Keyed by every saved field too, so the row's drafts reset
               // once a save comes back from the server.
-              key={`${category.id}:${category.name}:${category.color}`}
+              key={`${category.id}:${category.name}:${category.color}:${category.skill_type}:${category.resurface_days}`}
               category={category}
               itemCount={items.filter((i) => i.category_id === category.id).length}
             />
@@ -60,10 +62,22 @@ export function CategoryManager({
 function CategoryRow({ category, itemCount }: { category: Category; itemCount: number }) {
   const [name, setName] = useState(category.name);
   const [color, setColor] = useState(category.color);
+  const [skillType, setSkillType] = useState<SkillType>(category.skill_type);
+  const [days, setDays] = useState(category.resurface_days);
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
 
-  const changed = name.trim() !== category.name || color !== category.color;
+  const changed =
+    name.trim() !== category.name ||
+    color !== category.color ||
+    skillType !== category.skill_type ||
+    days !== category.resurface_days;
+
+  /** Picking a type fills in its research-based interval; the number stays editable. */
+  function chooseSkillType(type: SkillType) {
+    setSkillType(type);
+    setDays(SKILL_PRESETS[type].resurfaceDays);
+  }
 
   function run(action: () => Promise<{ error?: string }>) {
     setError(undefined);
@@ -74,7 +88,7 @@ function CategoryRow({ category, itemCount }: { category: Category; itemCount: n
   }
 
   function save() {
-    run(() => updateCategory(category.id, { name, color }));
+    run(() => updateCategory(category.id, { name, color, skill_type: skillType, resurface_days: days }));
   }
 
   function remove() {
@@ -95,7 +109,7 @@ function CategoryRow({ category, itemCount }: { category: Category; itemCount: n
           value={color}
           onChange={(e) => setColor(e.target.value)}
           aria-label={`Colour for ${category.name}`}
-          className="h-8 w-8 shrink-0 cursor-pointer rounded-md border bg-transparent p-0.5"
+          className="h-9 w-9 shrink-0 cursor-pointer rounded-lg border bg-transparent p-0.5"
         />
         <Input
           value={name}
@@ -123,6 +137,33 @@ function CategoryRow({ category, itemCount }: { category: Category; itemCount: n
         >
           <Trash2 />
         </Button>
+      </div>
+
+      {/* Second line: what kind of skill it is, and how long it can rest. */}
+      <div className="flex flex-wrap items-center gap-2 pl-10 text-sm text-muted-foreground">
+        <Select value={skillType} onValueChange={(v) => chooseSkillType(v as SkillType)}>
+          <SelectTrigger size="sm" className="w-32" aria-label={`Skill type for ${category.name}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SKILL_TYPES.map((type) => (
+              <SelectItem key={type} value={type}>
+                {SKILL_PRESETS[type].label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span>back after</span>
+        <Input
+          type="number"
+          min={1}
+          max={365}
+          value={days}
+          onChange={(e) => setDays(Math.round(Number(e.target.value)) || 1)}
+          aria-label={`Days before ${category.name} comes back`}
+          className="h-8 w-16 text-center"
+        />
+        <span>days untouched</span>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
     </li>

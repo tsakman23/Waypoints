@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { wouldCreateCycle } from "@/lib/graph";
 import { createClient } from "@/lib/supabase/server";
 import { isValidTimeZone } from "@/lib/profile";
-import type { CategoryInput, ItemInput, Profile } from "@/lib/types";
+import { SKILL_TYPES, type CategoryInput, type ItemInput, type Profile } from "@/lib/types";
 
 // Server actions can be called with any payload, not just what our forms
 // send. Row-level security still guarantees users can only touch their own
@@ -51,8 +51,21 @@ export async function deleteItem(id: string): Promise<ActionResult> {
 
 // Categories ----------------------------------------------------------------
 
+/** Readable messages for a bad skill type or interval; undefined when fine. */
+function skillError(input: Partial<CategoryInput>): string | undefined {
+  if (input.skill_type !== undefined && !SKILL_TYPES.includes(input.skill_type)) {
+    return "Choose one of the listed skill types.";
+  }
+  const days = input.resurface_days;
+  if (days !== undefined && !(Number.isInteger(days) && days >= 1 && days <= 365)) {
+    return "The interval must be between 1 and 365 days.";
+  }
+}
+
 export async function createCategory(input: CategoryInput): Promise<ActionResult & { id?: string }> {
   if (!input.name.trim()) return { error: "Give the category a name." };
+  const invalid = skillError(input);
+  if (invalid) return { error: invalid };
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("categories")
@@ -65,6 +78,8 @@ export async function createCategory(input: CategoryInput): Promise<ActionResult
 
 export async function updateCategory(id: string, input: Partial<CategoryInput>): Promise<ActionResult> {
   if (input.name !== undefined && !input.name.trim()) return { error: "Give the category a name." };
+  const invalid = skillError(input);
+  if (invalid) return { error: invalid };
   const supabase = await createClient();
   const { error } = await supabase.from("categories").update(input).eq("id", id);
   if (error) return { error: error.message };

@@ -4,8 +4,6 @@ export type SkillPreset = {
   label: string;
   /** Default days before an untouched interest is brought back into the route. */
   resurfaceDays: number;
-  /** Why that number, in a sentence the settings UI can show. */
-  basis: string;
 };
 
 /**
@@ -15,34 +13,18 @@ export type SkillPreset = {
  * can override its interval.
  */
 export const SKILL_PRESETS: Record<SkillType, SkillPreset> = {
-  fitness: {
-    label: "Fitness",
-    resurfaceDays: 7,
-    basis: "Endurance drops measurably after 2–3 weeks off; one hard session a week maintains strength.",
-  },
-  language: {
-    label: "Language",
-    resurfaceDays: 21,
-    basis: "Spaced practice beats cramming; learners need refreshers every few weeks.",
-  },
-  technical: {
-    label: "Technical",
-    resurfaceDays: 28,
-    basis: "Cognitive skills lose detail at about 0.08 SD a month without practice.",
-  },
-  instrument: {
-    label: "Instrument",
-    resurfaceDays: 42,
-    basis: "Motor skills decay slowly; fine accuracy and fluency go first.",
-  },
-  creative: {
-    label: "Creative",
-    resurfaceDays: 28,
-    basis: "No direct research; a middle value.",
-  },
-  other: {
-    label: "Other",
-    resurfaceDays: 28,
-    basis: "General default for anything without a closer match.",
-  },
+  // Endurance drops measurably after 2–3 weeks off (Coyle et al. 1984);
+  // one hard session a week maintains strength (Bickel et al. 2011).
+  fitness: { label: "Fitness", resurfaceDays: 7 },
+  // Spaced practice beats massed (Cepeda et al. 2006); learners need
+  // refreshers every few weeks (Bahrick et al. 1993).
+  language: { label: "Language", resurfaceDays: 21 },
+  // Cognitive skills lose about 0.08 SD a month unused (Tatel & Ackerman 2025).
+  technical: { label: "Technical", resurfaceDays: 28 },
+  // Motor skills decay slowly; fine accuracy and fluency go first.
+  instrument: { label: "Instrument", resurfaceDays: 42 },
+  // No direct research; a middle value.
+  creative: { label: "Creative", resurfaceDays: 28 },
+  // General default for anything without a closer match.
+  other: { label: "Other", resurfaceDays: 28 },
 };
