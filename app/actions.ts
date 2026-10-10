@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { wouldCreateCycle } from "@/lib/graph";
 import { createClient } from "@/lib/supabase/server";
-import { isValidTimeZone } from "@/lib/profile";
+import { isValidTimeZone, localDay, yesterdayIn } from "@/lib/profile";
 import { SKILL_TYPES, type CategoryInput, type ItemInput, type Profile } from "@/lib/types";
 
 // Server actions can be called with any payload, not just what our forms
@@ -38,6 +38,15 @@ export async function updateItem(id: string, input: Partial<ItemInput>): Promise
   const supabase = await createClient();
   const { error } = await supabase.from("items").update(input).eq("id", id);
   if (error) return { error: error.message };
+
+  // Finishing something counts as working on it today.
+  if (input.status === "done") {
+    const today = localDay(new Date(), await timeZoneOf(supabase)).date;
+    const { error: logError } = await supabase
+      .from("work_logs")
+      .upsert({ item_id: id, day: today }, { onConflict: "item_id,day", ignoreDuplicates: true });
+    if (logError) return { error: logError.message };
+  }
   return refresh();
 }
 
@@ -160,6 +169,57 @@ export async function saveProfile(input: ProfileInput): Promise<ActionResult> {
     },
     { onConflict: "user_id" },
   );
+  if (error) return { error: error.message };
+
+  // On first setup, count yesterday as answered: the first check-in comes
+  // tomorrow instead of asking about the day before you started.
+  const { error: checkInError } = await supabase
+    .from("profiles")
+    .update({ last_check_in: yesterdayIn(input.timezone) })
+    .eq("user_id", (await userIdOf(supabase)) ?? "")
+    .is("last_check_in", null);
+  if (checkInError) return { error: checkInError.message };
+  return refresh();
+}
+
+// Check-in --------------------------------------------------------------------
+
+/** The signed-in user's id. Updates must name a row, even with RLS. */
+async function userIdOf(supabase: Awaited<ReturnType<typeof createClient>>): Promise<string | undefined> {
+  const { data } = await supabase.auth.getClaims();
+  return data?.claims.sub;
+}
+
+/** The user's saved timezone, or UTC before setup. */
+async function timeZoneOf(supabase: Awaited<ReturnType<typeof createClient>>): Promise<string> {
+  const { data } = await supabase.from("profiles").select("timezone").maybeSingle();
+  return data?.timezone ?? "UTC";
+}
+
+/**
+ * Answers "What did you work on yesterday?": logs each item for yesterday
+ * and marks the day as asked. An empty list means "Nothing". Yesterday is
+ * worked out here from the saved timezone, not taken from the browser.
+ */
+export async function submitCheckIn(itemIds: string[]): Promise<ActionResult> {
+  const supabase = await createClient();
+  const day = yesterdayIn(await timeZoneOf(supabase));
+
+  if (itemIds.length > 0) {
+    const { error } = await supabase
+      .from("work_logs")
+      .upsert(
+        itemIds.map((item_id) => ({ item_id, day })),
+        // Already logged for that day (say, marked done yesterday): keep it.
+        { onConflict: "item_id,day", ignoreDuplicates: true },
+      );
+    if (error) return { error: error.message };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ last_check_in: day })
+    .eq("user_id", (await userIdOf(supabase)) ?? "");
   if (error) return { error: error.message };
   return refresh();
 }

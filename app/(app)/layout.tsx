@@ -3,13 +3,16 @@ import { Settings } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { NavLinks } from "@/components/nav-links";
 import { SetupWizard } from "@/components/setup-wizard";
-import { getProfile } from "@/lib/data";
+import { CheckInDialog } from "@/components/check-in-dialog";
+import { getCheckIn, getProfile } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 
 /** Floating glass header over every signed-in view, and first-run setup. */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
   const [{ data }, profile] = await Promise.all([supabase.auth.getClaims(), getProfile()]);
+  // Only once setup is done: then, at most once a day.
+  const checkIn = profile ? await getCheckIn(profile) : null;
 
   return (
     <>
@@ -48,6 +51,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <main className="mx-auto max-w-5xl px-4 pt-24 pb-12 sm:px-8">{children}</main>
       {/* No profile yet means first visit: ask the setup questions. */}
       {!profile && <SetupWizard />}
+      {/* Yesterday not answered yet: the daily check-in. */}
+      {checkIn && <CheckInDialog checkIn={checkIn} />}
     </>
   );
 }

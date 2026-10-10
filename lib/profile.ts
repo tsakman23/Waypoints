@@ -65,3 +65,8 @@ export function isValidTimeZone(timeZone: string): boolean {
     return false;
   }
 }
+
+/** Yesterday's date (`YYYY-MM-DD`) as the user sees it, in their timezone. */
+export function yesterdayIn(timeZone: string, now: Date = new Date()): string {
+  return previousDay(localDay(now, timeZone).date);
+}

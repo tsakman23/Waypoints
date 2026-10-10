@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_PROFILE, isValidTimeZone, localDay, previousDay, sessionsIn, sessionsOn } from "./profile.ts";
+import { DEFAULT_PROFILE, isValidTimeZone, localDay, previousDay, sessionsIn, sessionsOn, yesterdayIn } from "./profile.ts";
 
 test("minutes become whole sessions, with at least one when any time is set", () => {
   assert.equal(sessionsIn(120, 60), 2);
@@ -34,4 +34,11 @@ test("weekend days get the weekend budget", () => {
 test("recognises real timezone names only", () => {
   assert.equal(isValidTimeZone("Europe/London"), true);
   assert.equal(isValidTimeZone("Mars/Olympus_Mons"), false);
+});
+
+test("yesterday depends on the user's timezone", () => {
+  // 23:30 UTC on Friday 9 October: already Saturday in Tokyo.
+  const moment = new Date("2026-10-09T23:30:00Z");
+  assert.equal(yesterdayIn("UTC", moment), "2026-10-08");
+  assert.equal(yesterdayIn("Asia/Tokyo", moment), "2026-10-09");
 });
