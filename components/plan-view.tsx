@@ -179,9 +179,6 @@ function SessionRow({ session, categoriesById, onOpen }: CardProps) {
 function Tags({ option }: { option: Option }) {
   return (
     <>
-      {option.continuing && (
-        <span className="rounded-full border border-cyan/40 px-2 text-xs text-cyan">continuing</span>
-      )}
       {option.due && (
         <span className="rounded-full border border-amber-300/40 px-2 text-xs text-amber-200">due</span>
       )}

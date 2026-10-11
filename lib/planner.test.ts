@@ -16,7 +16,7 @@ const item = (
   id: string,
   category_id: string | null,
   [interest, impact, effort]: [Score, Score, Score],
-  status: Status = "idea",
+  status: Status = "active",
 ): Item => ({ id, title: id, notes: "", category_id, status, interest, impact, effort });
 
 /** Mark each item as worked on, on the given day. */
@@ -69,16 +69,44 @@ test("a neglected interest comes back on its skill clock", () => {
   assert.equal(first.due, true);
 });
 
-test("continuing an active item beats starting a new one at the same score", () => {
-  const items = [item("Alpha", "A", [3, 3, 2]), item("Beta", "B", [3, 3, 2], "active")];
-  const { main } = plan(items, [cat("A"), cat("B")], logs("2026-10-08", "Alpha", "Beta"));
-  assert.equal(main.days[0].sessions[0].item.id, "Beta");
-  assert.equal(main.days[0].sessions[0].continuing, true);
+test("only active items are planned: ideas aren't commitments yet", () => {
+  // The idea scores far higher, but only the active item may be recommended.
+  const items = [item("idea", "A", [5, 5, 1], "idea"), item("active", "B", [2, 2, 4])];
+  const { main } = plan(items, [cat("A"), cat("B")]);
+  assert.deepEqual([...new Set(picks(main))], ["active"]);
+  for (const session of main.days.flatMap((d) => d.sessions)) {
+    assert.ok(session.alternatives.every((o) => o.item.status === "active"));
+  }
 });
 
-test("blocked, parked and done items are never planned", () => {
+test("a week doesn't settle into two interests taking turns", () => {
+  // Two strong interests and three weaker ones, all touched yesterday, as in
+  // a real plan where the top two used to alternate every day.
+  const items = [
+    item("strong", "A", [5, 5, 1]), // 10
+    item("second", "B", [4, 4, 1]), // 8
+    item("c", "C", [3, 3, 1]), // 6
+    item("d", "D", [3, 3, 1]),
+    item("e", "E", [3, 3, 1]),
+  ];
+  const categories = ["A", "B", "C", "D", "E"].map((c) => cat(c));
+  const { main } = plan(items, categories, logs("2026-10-08", "strong", "second", "c", "d", "e"));
+  const week = picks(main);
+  // Every interest gets time this week...
+  assert.deepEqual(new Set(week), new Set(["strong", "second", "c", "d", "e"]));
+  // ...and it never settles into a back-and-forth: any four sessions in a
+  // row involve at least three interests. (Without the variety penalty, the
+  // plan alternated strong, second, strong, second... for days.)
+  for (let i = 0; i + 4 <= week.length; i++) {
+    const run = week.slice(i, i + 4);
+    assert.ok(new Set(run).size >= 3, `sessions ${i + 1}-${i + 4} only use ${[...new Set(run)].join(" and ")}`);
+  }
+});
+
+test("ideas, blocked, parked and done items are never planned", () => {
   const items = [
     item("open", "A", [1, 1, 5]),
+    item("idea", "A", [5, 5, 1], "idea"),
     item("blocked", "A", [5, 5, 1]),
     item("parked", "A", [5, 5, 1], "parked"),
     item("done", "A", [5, 5, 1], "done"),

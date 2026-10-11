@@ -4,10 +4,11 @@ import { scoreOf } from "./scoring.ts";
 import type { Category, Dependency, Item, Profile, WorkLog } from "./types.ts";
 
 // The route planner: a quality-diversity schedule of work sessions for the
-// coming days. Each session goes to the available item with the best
-// adjusted score; interests rotate between sessions, neglected interests
-// come back on their skill clock, and each session offers alternatives
-// from other interests. See the "Waypoints Route Research" write-up.
+// coming days, drawn only from active items (ideas aren't commitments yet).
+// Each session goes to the item with the best adjusted score; interests
+// rotate between sessions and across the week, neglected interests come
+// back on their skill clock, and each session offers alternatives from other
+// interests. See the "Waypoints Route Research" write-up.
 
 /** Tunable numbers, kept together so they're easy to find and adjust. */
 export const PLAN = {
@@ -15,8 +16,11 @@ export const PLAN = {
   horizonDays: 7,
   /** Penalty for the same interest 1, 2 and 3 sessions back. Soft: never a ban. */
   repeatPenalty: [0.7, 0.85, 0.95],
-  /** Bonus for items already in progress: finishing beats starting. */
-  continueBonus: 1.25,
+  /**
+   * Penalty per earlier session of the same interest anywhere this week, so
+   * no interest dominates: without it, two strong ones can take turns all week.
+   */
+  varietyPenalty: 0.8,
   /** Alternatives offered per session, each from a different interest. */
   alternatives: 2,
   /** Extra whole plans offered besides the main one. */
@@ -30,10 +34,8 @@ export type Option = {
   item: Item;
   /** The plain value-for-effort score from scoring.ts. */
   score: number;
-  /** After the continue bonus, skill clock and repeat penalty. */
+  /** After the skill clock and the repeat and variety penalties. */
   adjusted: number;
-  /** Already active, so it got the continue bonus. */
-  continuing: boolean;
   /** Its interest has gone untouched for at least its resurfacing interval. */
   due: boolean;
 };
@@ -108,7 +110,7 @@ function lastTouchedByInterest(items: Item[], workLogs: WorkLog[]): Map<string, 
 /** Everything that stays the same while planning one set of routes. */
 type Context = {
   input: PlannerInput;
-  /** What can be worked on now: not done or parked, prerequisites done. */
+  /** What gets planned: active items whose prerequisites are done. */
   available: Item[];
   /** Each available item's plain score. */
   scores: Map<string, number>;
@@ -121,7 +123,7 @@ function contextFor(input: PlannerInput): Context {
   const itemsById = new Map(items.map((i) => [i.id, i]));
   const prereqs = prerequisitesOf(dependencies);
   const dependents = dependentsOf(dependencies);
-  const available = items.filter((i) => i.status !== "parked" && isAvailable(i, itemsById, prereqs));
+  const available = items.filter((i) => i.status === "active" && isAvailable(i, itemsById, prereqs));
   return {
     input,
     available,
@@ -135,7 +137,6 @@ function contextFor(input: PlannerInput): Context {
 function rate(item: Item, date: string, history: string[], touched: Map<string, string>, ctx: Context): Option {
   const score = ctx.scores.get(item.id)!;
   const interest = interestOf(item);
-  const continuing = item.status === "active";
 
   // Skill clock: only for categorised items; uncategorised chores never resurface.
   const interval = ctx.intervals.get(interest);
@@ -149,9 +150,11 @@ function rate(item: Item, date: string, history: string[], touched: Map<string, 
   PLAN.repeatPenalty.forEach((penalty, k) => {
     if (history[history.length - 1 - k] === interest) repeat *= penalty;
   });
+  // Variety penalty for every earlier session of this interest this week.
+  const variety = PLAN.varietyPenalty ** history.filter((h) => h === interest).length;
 
-  const adjusted = score * (continuing ? PLAN.continueBonus : 1) * clock * repeat;
-  return { item, score, adjusted, continuing, due };
+  const adjusted = score * clock * repeat * variety;
+  return { item, score, adjusted, due };
 }
 
 /** Best first; ties broken by plain score, then title, so plans are stable. */
