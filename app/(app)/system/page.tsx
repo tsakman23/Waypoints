@@ -4,7 +4,7 @@ import { planRoutes } from "@/lib/planner";
 import { localDay } from "@/lib/profile";
 import { layoutGalaxy } from "@/lib/solar";
 
-/** The solar system: interests as suns, items as planets, the week as a ship's route. */
+/** The solar system: interests as suns, items as planets, today as a ship's route. */
 export default async function SystemPage() {
   const [{ items, categories, dependencies }, profile, workLogs] = await Promise.all([
     getData(),
@@ -14,6 +14,7 @@ export default async function SystemPage() {
   // No profile yet: the layout is showing the setup wizard instead.
   if (!profile) return null;
 
+  // The same plan as Next up, in the user's own order for today.
   const { main } = planRoutes({
     items,
     dependencies,
@@ -26,10 +27,10 @@ export default async function SystemPage() {
   return (
     <SolarSystemView
       systems={layoutGalaxy(items, categories, dependencies)}
-      route={main.days.flatMap((d) => d.sessions.map((s) => s.item.id))}
+      today={main.days[0]?.sessions ?? []}
+      categories={categories}
       animate={profile.animate_orbits}
       items={items}
-      categories={categories}
       dependencies={dependencies}
     />
   );

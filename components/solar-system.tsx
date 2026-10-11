@@ -8,6 +8,8 @@ import { Vector3 } from "three";
 import type * as THREE from "three";
 import { Lock } from "lucide-react";
 import { ItemEditor } from "@/components/item-editor";
+import { TodaySortable } from "@/components/today-sortable";
+import type { Session } from "@/lib/planner";
 import { orbitPosition, type Planet, type SolarSystem } from "@/lib/solar";
 import type { Category, Dependency, Item } from "@/lib/types";
 
@@ -44,15 +46,15 @@ function usePrefersReducedMotion() {
 
 export function SolarSystemView({
   systems,
-  route,
+  today,
   animate,
   items,
   categories,
   dependencies,
 }: {
   systems: SolarSystem[];
-  /** This week's planned sessions, as item ids in order. */
-  route: string[];
+  /** Today's planned sessions, in the user's order. */
+  today: Session[];
   /** The profile's "Animate the solar system" setting. */
   animate: boolean;
   items: Item[];
@@ -65,6 +67,17 @@ export function SolarSystemView({
   const [editing, setEditing] = useState<string | null>(null);
   const time = useRef(0);
   const ship = useRef(0);
+
+  // Today's order, updated the moment a stop is dragged (saving happens in
+  // the background). A new order replays the ship's journey.
+  const [order, setOrder] = useState(today);
+  const signature = today.map((s) => s.item.id).join(",");
+  useEffect(() => setOrder(today), [signature]); // eslint-disable-line react-hooks/exhaustive-deps
+  const route = order.map((s) => s.item.id);
+  const replay = () => {
+    ship.current = 0;
+  };
+  const categoriesById = new Map(categories.map((c) => [c.id, c]));
 
   // Labels are ordinary HTML in one layer over the canvas. Each registers its
   // element here; LabelProjector moves them to their planet every frame.
@@ -170,8 +183,52 @@ export function SolarSystemView({
         )}
       </div>
 
+      {/* Today's route: drag to choose the order; the ship flies it. */}
+      {order.length > 0 && (
+        <div className="wp-glass absolute bottom-16 left-4 z-10 flex w-72 flex-col gap-2 rounded-2xl p-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-heading text-xs font-semibold tracking-[0.14em] text-cyan uppercase">Today&apos;s route</h2>
+            <button
+              type="button"
+              onClick={replay}
+              disabled={!moving}
+              className="cursor-pointer rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-violet/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Replay journey
+            </button>
+          </div>
+          <TodaySortable
+            sessions={order}
+            onOrderChange={(next) => {
+              setOrder(next);
+              replay();
+            }}
+            className="flex flex-col gap-1"
+            renderItem={(session, grip) => {
+              const category = session.item.category_id ? categoriesById.get(session.item.category_id) : undefined;
+              return (
+                <div
+                  className="wp-row flex items-center gap-2 rounded-lg py-1 pr-2"
+                  style={category ? ({ "--c": category.color } as React.CSSProperties) : undefined}
+                >
+                  {grip}
+                  {category ? <span className="wp-dot" /> : <span className="size-2.5" />}
+                  <button
+                    type="button"
+                    onClick={() => setEditing(session.item.id)}
+                    className="min-w-0 flex-1 cursor-pointer truncate text-left text-sm"
+                  >
+                    {session.item.title}
+                  </button>
+                </div>
+              );
+            }}
+          />
+        </div>
+      )}
+
       <p className="pointer-events-none absolute bottom-5 left-1/2 hidden -translate-x-1/2 rounded-full border border-border bg-card px-4 py-1.5 text-xs text-muted-foreground backdrop-blur-xl sm:block">
-        Each sun is an interest · drag to orbit, scroll to zoom · the ship flies your planned week
+        Each sun is an interest · drag to orbit, scroll to zoom · the ship flies today's route
       </p>
 
       {editing && (
@@ -337,37 +394,66 @@ function useRouteStops(systems: SolarSystem[], route: string[]) {
   }, [systems, route]);
 }
 
-/** A dashed line through the route's planets, following them as they orbit. */
+/** Violet at the first stop to cyan at the last, bright enough to bloom. */
+function routeColours(count: number): [number, number, number][] {
+  const violet = [0.55, 0.42, 1], cyan = [0.24, 0.88, 0.96];
+  return Array.from({ length: count }, (_, i) => {
+    const t = count > 1 ? i / (count - 1) : 0;
+    // Above 1: three.js treats these as extra-bright, and bloom makes them glow.
+    return violet.map((v, k) => (v + (cyan[k] - v) * t) * 1.8) as [number, number, number];
+  });
+}
+
+/**
+ * Today's path of light through the route's planets, following them as they
+ * orbit: a glowing line (violet to cyan in travel order) with dashes of
+ * light flowing along it in the direction you'll go.
+ */
 function RouteLine({ systems, route }: { systems: SolarSystem[]; route: string[] }) {
   const stops = useRouteStops(systems, route);
   const { time } = useClock();
-  const ref = useRef<React.ComponentRef<typeof Line>>(null);
+  const glow = useRef<React.ComponentRef<typeof Line>>(null);
+  const flow = useRef<React.ComponentRef<typeof Line>>(null);
   const initial = useMemo(() => stops.map(({ system, planet }) => worldPosition(system, planet, 0)), [stops]);
+  const colours = useMemo(() => routeColours(stops.length), [stops.length]);
 
-  useFrame(() => {
-    const line = ref.current;
-    if (!line || stops.length < 2) return;
-    line.geometry.setPositions(stops.flatMap(({ system, planet }) => worldPosition(system, planet, time.current)));
-    line.computeLineDistances();
+  useFrame((_, delta) => {
+    if (stops.length < 2) return;
+    const positions = stops.flatMap(({ system, planet }) => worldPosition(system, planet, time.current));
+    for (const line of [glow.current, flow.current]) {
+      if (!line) continue;
+      line.geometry.setPositions(positions);
+      line.computeLineDistances();
+    }
+    // Slide the dashes forward: the path shows which way you're heading.
+    if (flow.current) flow.current.material.dashOffset -= Math.min(delta, 0.1) * 2;
   });
 
   if (stops.length < 2) return null;
   return (
-    <Line
-      ref={ref}
-      points={initial}
-      color="#8b6cff"
-      lineWidth={1.6}
-      dashed
-      dashSize={0.9}
-      gapSize={0.7}
-      transparent
-      opacity={0.75}
-    />
+    <>
+      <Line ref={glow} points={initial} vertexColors={colours} lineWidth={3.5} toneMapped={false} transparent opacity={0.9} />
+      <Line
+        ref={flow}
+        points={initial}
+        color="#ffffff"
+        lineWidth={1.4}
+        dashed
+        dashSize={0.5}
+        gapSize={2.5}
+        toneMapped={false}
+        transparent
+        opacity={0.85}
+      />
+    </>
   );
 }
 
-/** The spaceship: flies leg by leg along the route, curving up between planets, with a trail. */
+/**
+ * The spaceship tells the day's story once: it flies the stops in order,
+ * returns to the first, and parks in a slow orbit around it, where your day
+ * starts. "Replay journey" (or reordering) flies it again.
+ */
 function Ship({ systems, route, moving }: { systems: SolarSystem[]; route: string[]; moving: boolean }) {
   const stops = useRouteStops(systems, route);
   const { time, ship } = useClock();
@@ -376,19 +462,26 @@ function Ship({ systems, route, moving }: { systems: SolarSystem[]; route: strin
   useFrame(() => {
     const group = ref.current;
     if (!group || stops.length === 0) return;
-    if (stops.length === 1 || !moving) {
-      // Nowhere to fly, or motion off: wait beside the first stop.
-      const [x, y, z] = worldPosition(stops[0].system, stops[0].planet, time.current);
-      group.position.set(x, y + stops[0].planet.radius + 0.8, z);
+    const at = (i: number) => worldPosition(stops[i].system, stops[i].planet, time.current);
+
+    // Out through every stop, then one leg back to the first.
+    const legs = stops.length > 1 ? stops.length : 0;
+    const progress = ship.current / LEG_SECONDS;
+    if (!moving || progress >= legs) {
+      // Parked: a slow orbit around today's first planet.
+      const [x, y, z] = at(0);
+      const r = stops[0].planet.radius + 1.1;
+      const angle = moving ? ship.current * 0.8 : 0;
+      const next: [number, number, number] = [x + Math.cos(angle) * r, y + 0.5, z + Math.sin(angle) * r];
+      group.lookAt(x + Math.cos(angle + 0.3) * r, y + 0.5, z + Math.sin(angle + 0.3) * r);
+      group.position.set(...next);
       return;
     }
-    const legs = stops.length - 1;
-    const progress = (ship.current / LEG_SECONDS) % legs;
     const leg = Math.floor(progress);
     const f = progress - leg;
     const ease = f * f * (3 - 2 * f); // smoothstep: speed up, cruise, slow down
-    const a = worldPosition(stops[leg].system, stops[leg].planet, time.current);
-    const b = worldPosition(stops[leg + 1].system, stops[leg + 1].planet, time.current);
+    const a = at(leg);
+    const b = at((leg + 1) % stops.length);
     const lift = Math.sin(Math.PI * f) * Math.min(8, Math.hypot(b[0] - a[0], b[2] - a[2]) * 0.2);
     const next: [number, number, number] = [
       a[0] + (b[0] - a[0]) * ease,

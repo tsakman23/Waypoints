@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clockFactor, planRoutes, routeHops, sessionNumbers, type PlannerInput, type Route } from "./planner.ts";
+import { applyTodayOrder, clockFactor, planRoutes, routeHops, sessionNumbers, type PlannerInput, type Route } from "./planner.ts";
 import { DEFAULT_PROFILE } from "./profile.ts";
 import type { Category, Dependency, Item, Score, Status, WorkLog } from "./types.ts";
 
@@ -171,4 +171,24 @@ test("session numbers and hops read a route in order", () => {
   const hops = routeHops(main);
   for (const [from, to] of hops) assert.notEqual(from, to);
   assert.equal(new Set(hops.map((h) => h.join(">"))).size, hops.length);
+});
+
+test("today's sessions follow the user's saved order", () => {
+  // Weekend: two sessions today (Saturday 10 October).
+  const items = [item("a", "A", [5, 5, 1]), item("b", "B", [4, 4, 1]), item("c", "C", [3, 3, 1])];
+  const input: PlannerInput = {
+    items, dependencies: [], categories: [cat("A"), cat("B"), cat("C")], workLogs: [],
+    profile: DEFAULT_PROFILE, today: { date: "2026-10-10", weekday: 6 },
+  };
+  const { main } = planRoutes(input);
+  const planned = main.days[0].sessions.map((s) => s.item.id);
+  const reversed = [...planned].reverse();
+
+  const mine = applyTodayOrder(main, reversed);
+  assert.deepEqual(mine.days[0].sessions.map((s) => s.item.id), reversed);
+  // Other days are untouched.
+  assert.deepEqual(mine.days.slice(1), main.days.slice(1));
+  // Stale ids are ignored and unmatched sessions kept, so nothing is lost.
+  const partial = applyTodayOrder(main, ["gone", planned[1]]);
+  assert.deepEqual(partial.days[0].sessions.map((s) => s.item.id), [planned[1], planned[0]]);
 });

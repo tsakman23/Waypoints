@@ -40,7 +40,9 @@ export async function getProfile(): Promise<Profile | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("weekday_minutes, weekend_minutes, session_minutes, weekend_days, timezone, animate_orbits, last_check_in")
+    .select(
+      "weekday_minutes, weekend_minutes, session_minutes, weekend_days, timezone, animate_orbits, last_check_in, today_order_date, today_order",
+    )
     // At most one row, and RLS means it can only be the user's own.
     .maybeSingle();
   if (error) throw new Error(error.message);

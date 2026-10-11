@@ -219,7 +219,10 @@ export function planRoutes(input: PlannerInput): Plan {
     const mainOnly = new Set(opening(main));
     routes.push(planRoute(ctx, [everyEarlier, mainOnly]));
   }
-  return { main, alternatives: routes.slice(1) };
+  // The user's own order for today, if they set one today.
+  const { today_order_date, today_order } = input.profile;
+  const ordered = today_order_date === input.today.date ? applyTodayOrder(main, today_order) : main;
+  return { main: ordered, alternatives: routes.slice(1) };
 }
 
 // Reading a route ---------------------------------------------------------------
@@ -249,4 +252,22 @@ export function routeHops(route: Route): [string, string][] {
     hops.push([from, to]);
   }
   return hops;
+}
+
+/**
+ * Rearrange a route's first day (today) to the user's saved order. Sessions
+ * are matched to the order by item; any that don't appear in it (the plan
+ * may have changed since) keep the planner's order at the end, so nothing
+ * is ever dropped. Other days are untouched.
+ */
+export function applyTodayOrder(route: Route, order: string[]): Route {
+  const [today, ...rest] = route.days;
+  if (!today || order.length === 0) return route;
+  const remaining = [...today.sessions];
+  const ordered: Session[] = [];
+  for (const id of order) {
+    const i = remaining.findIndex((s) => s.item.id === id);
+    if (i >= 0) ordered.push(...remaining.splice(i, 1));
+  }
+  return { days: [{ ...today, sessions: [...ordered, ...remaining] }, ...rest] };
 }

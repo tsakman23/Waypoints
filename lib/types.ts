@@ -60,4 +60,8 @@ export type Profile = {
   animate_orbits: boolean;
   /** The last day the check-in asked about, or null if it never has. */
   last_check_in: string | null;
+  /** The day today_order was saved for; it's ignored on any other day. */
+  today_order_date: string | null;
+  /** The user's own order for that day's sessions, as item ids. */
+  today_order: string[];
 };

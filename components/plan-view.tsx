@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ItemEditor } from "@/components/item-editor";
 import { StatusBadge } from "@/components/status-badge";
+import { TodaySortable } from "@/components/today-sortable";
 import type { Option, Plan, PlanDay, Session } from "@/lib/planner";
 import type { Category, Dependency, Item } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -77,14 +78,18 @@ export function PlanView({
             <h2 className="text-xs font-semibold tracking-[0.14em] text-cyan uppercase">{dayLabel(today, 0)}</h2>
             {today.sessions.length === 0 ? (
               <RestDay />
+            ) : routeIndex === 0 ? (
+              // Your plan: drag the grips to choose the order you'll do them in.
+              <TodaySortable
+                sessions={today.sessions}
+                className="flex flex-col gap-3"
+                renderItem={(session, grip) => (
+                  <SessionCard session={session} categoriesById={categoriesById} onOpen={setEditing} grip={grip} />
+                )}
+              />
             ) : (
               today.sessions.map((session, i) => (
-                <SessionCard
-                  key={i}
-                  session={session}
-                  categoriesById={categoriesById}
-                  onOpen={setEditing}
-                />
+                <SessionCard key={i} session={session} categoriesById={categoriesById} onOpen={setEditing} />
               ))
             )}
           </section>
@@ -127,16 +132,20 @@ type CardProps = {
   session: Session;
   categoriesById: Map<string, Category>;
   onOpen: (id: string) => void;
+  /** Drag handle, when the card can be reordered. */
+  grip?: React.ReactNode;
 };
 
 /** A session today: the pick in full, with tags and the alternatives. */
-function SessionCard({ session, categoriesById, onOpen }: CardProps) {
+function SessionCard({ session, categoriesById, onOpen, grip }: CardProps) {
   const category = session.item.category_id ? categoriesById.get(session.item.category_id) : undefined;
   return (
     <div
-      className="wp-glass wp-card-hover flex flex-col gap-3 rounded-2xl p-4"
+      className="wp-glass wp-card-hover flex gap-3 rounded-2xl p-4"
       style={category ? ({ "--c": category.color } as React.CSSProperties) : undefined}
     >
+      {grip && <div className="-ml-1 self-center">{grip}</div>}
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
       <button type="button" onClick={() => onOpen(session.item.id)} className="flex cursor-pointer flex-col gap-1.5 text-left">
         <span className="font-heading text-base font-semibold tracking-wide">{session.item.title}</span>
         <span className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -151,6 +160,7 @@ function SessionCard({ session, categoriesById, onOpen }: CardProps) {
         </span>
       </button>
       <Alternatives options={session.alternatives} categoriesById={categoriesById} onOpen={onOpen} />
+      </div>
     </div>
   );
 }

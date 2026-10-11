@@ -123,6 +123,9 @@ create table profiles (
   animate_orbits  boolean not null default true,
   -- The last day the check-in has asked about, so it asks once per day.
   last_check_in   date,
+  -- The user's own order for today's sessions; ignored on any other day.
+  today_order_date date,
+  today_order     uuid[] not null default '{}',
   created_at      timestamptz not null default now()
 );
 

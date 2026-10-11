@@ -136,8 +136,8 @@ export async function removeDependency(itemId: string, dependsOnId: string): Pro
 
 // Profile ---------------------------------------------------------------------
 
-/** The settings the wizard and settings page edit (not the check-in state). */
-export type ProfileInput = Omit<Profile, "last_check_in">;
+/** The settings the wizard and settings page edit (not check-in or ordering state). */
+export type ProfileInput = Omit<Profile, "last_check_in" | "today_order_date" | "today_order">;
 
 /** Creates the profile on first save, updates it afterwards. */
 export async function saveProfile(input: ProfileInput): Promise<ActionResult> {
@@ -219,6 +219,24 @@ export async function submitCheckIn(itemIds: string[]): Promise<ActionResult> {
   const { error } = await supabase
     .from("profiles")
     .update({ last_check_in: day })
+    .eq("user_id", (await userIdOf(supabase)) ?? "");
+  if (error) return { error: error.message };
+  return refresh();
+}
+
+// Today's order -----------------------------------------------------------------
+
+/**
+ * Saves the user's own order for today's sessions (item ids, first to last).
+ * "Today" is worked out here from the saved timezone; the order is ignored
+ * on any other day.
+ */
+export async function saveTodayOrder(itemIds: string[]): Promise<ActionResult> {
+  const supabase = await createClient();
+  const today = localDay(new Date(), await timeZoneOf(supabase)).date;
+  const { error } = await supabase
+    .from("profiles")
+    .update({ today_order_date: today, today_order: itemIds })
     .eq("user_id", (await userIdOf(supabase)) ?? "");
   if (error) return { error: error.message };
   return refresh();

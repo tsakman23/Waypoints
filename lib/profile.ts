@@ -9,6 +9,8 @@ export const DEFAULT_PROFILE: Profile = {
   timezone: "UTC",
   animate_orbits: true,
   last_check_in: null,
+  today_order_date: null,
+  today_order: [],
 };
 
 /** How many whole sessions fit in a day's minutes (at least one if any time is set). */
