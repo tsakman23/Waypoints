@@ -9,6 +9,8 @@ const LINKS = [
   { href: "/", label: "List" },
   { href: "/next", label: "Next up" },
   { href: "/graph", label: "Graph" },
+  // Preview: replaces Graph once approved.
+  { href: "/system", label: "System" },
 ];
 
 /**
