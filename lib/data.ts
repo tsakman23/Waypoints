@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { yesterdayIn } from "@/lib/profile";
-import type { Category, Dependency, Item, Profile } from "@/lib/types";
+import type { Category, Dependency, Item, Profile, WorkLog } from "@/lib/types";
 
 export type Data = {
   items: Item[];
@@ -81,4 +81,12 @@ export async function getCheckIn(profile: Profile): Promise<CheckIn | null> {
       color: i.category_id ? (colors.get(i.category_id) ?? null) : null,
     })),
   };
+}
+
+/** Every logged work day for the signed-in user, newest first. */
+export async function getWorkLogs(): Promise<WorkLog[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("work_logs").select("item_id, day").order("day", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
