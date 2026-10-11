@@ -88,28 +88,3 @@ export function nextUp(items: Item[], deps: Dependency[]): Suggestion[] {
     .map((item) => scoreOf(item, itemsById, dependents))
     .sort((a, b) => b.score - a.score);
 }
-
-/**
- * The ids along the recommended route: the top Next-up item, then at each
- * step the unfinished goal it unlocks whose branch is worth most (its own
- * value plus everything it leads to), until there's nothing further.
- * Empty when nothing is available.
- */
-export function recommendedPath(items: Item[], deps: Dependency[]): string[] {
-  const [top] = nextUp(items, deps);
-  if (!top) return [];
-
-  const itemsById = new Map(items.map((i) => [i.id, i]));
-  const dependents = dependentsOf(deps);
-  const branchWorth = (item: Item) => valueOf(item) + unlockBoost(item.id, itemsById, dependents);
-
-  const path = [top.item.id];
-  for (;;) {
-    const next = (dependents.get(path[path.length - 1]) ?? [])
-      .map((id) => itemsById.get(id))
-      .filter((i): i is Item => i !== undefined && i.status !== "done" && !path.includes(i.id))
-      .sort((a, b) => branchWorth(b) - branchWorth(a))[0];
-    if (!next) return path;
-    path.push(next.id);
-  }
-}

@@ -218,3 +218,32 @@ export function planRoutes(input: PlannerInput): Plan {
   }
   return { main, alternatives: routes.slice(1) };
 }
+
+// Reading a route ---------------------------------------------------------------
+
+/** Each item's session numbers in a route, counting from 1: { squats: [1, 5, 8] }. */
+export function sessionNumbers(route: Route): Map<string, number[]> {
+  const numbers = new Map<string, number[]>();
+  route.days
+    .flatMap((d) => d.sessions)
+    .forEach((s, i) => numbers.set(s.item.id, [...(numbers.get(s.item.id) ?? []), i + 1]));
+  return numbers;
+}
+
+/**
+ * The hops between consecutive sessions, as [from, to] item ids. A session
+ * on the same item as the one before it isn't a hop, and a hop that has
+ * already appeared is listed once.
+ */
+export function routeHops(route: Route): [string, string][] {
+  const order = route.days.flatMap((d) => d.sessions.map((s) => s.item.id));
+  const seen = new Set<string>();
+  const hops: [string, string][] = [];
+  for (let i = 1; i < order.length; i++) {
+    const [from, to] = [order[i - 1], order[i]];
+    if (from === to || seen.has(`${from}>${to}`)) continue;
+    seen.add(`${from}>${to}`);
+    hops.push([from, to]);
+  }
+  return hops;
+}

@@ -20,7 +20,8 @@ import { Check } from "lucide-react";
 import { ItemEditor } from "@/components/item-editor";
 import { dependentsOf } from "@/lib/graph";
 import { layoutGraph } from "@/lib/layout";
-import { recommendedPath, scoreOf } from "@/lib/scoring";
+import { routeHops, sessionNumbers, type Route } from "@/lib/planner";
+import { scoreOf } from "@/lib/scoring";
 import type { Category, Dependency, Item, Score, Status } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -102,7 +103,8 @@ function ItemNodeView({ data }: NodeProps<ItemNode>) {
   );
 }
 
-type StarEdgeData = { highlighted: boolean };
+/** A dependency (structure) or a hop between consecutive planned sessions. */
+type StarEdgeData = { kind: "dependency" | "route" };
 type StarEdgeType = Edge<StarEdgeData, "star">;
 
 /** Where an orb sits on the canvas, and how far a line should stop short of its centre. */
@@ -119,8 +121,8 @@ function orbOf(node: InternalNode) {
 
 /**
  * A constellation line: straight from one orb towards the other's centre,
- * starting and ending at the orbs' edges, whatever the angle. On the
- * recommended path it's a gradient with a soft glow and light flowing along it.
+ * starting and ending at the orbs' edges, whatever the angle. Dependencies
+ * are faint; route hops are a dashed gradient with light flowing along them.
  */
 function StarEdge({ id, source, target, markerEnd, data }: EdgeProps<StarEdgeType>) {
   const from = useInternalNode(source);
@@ -137,7 +139,7 @@ function StarEdge({ id, source, target, markerEnd, data }: EdgeProps<StarEdgeTyp
   const end = { x: b.x - ux * b.gap, y: b.y - uy * b.gap };
   const path = `M${start.x},${start.y} L${end.x},${end.y}`;
 
-  if (!data?.highlighted) {
+  if (data?.kind !== "route") {
     return <BaseEdge id={id} path={path} markerEnd={markerEnd} className="wp-edge" />;
   }
 
@@ -153,7 +155,7 @@ function StarEdge({ id, source, target, markerEnd, data }: EdgeProps<StarEdgeTyp
         </linearGradient>
       </defs>
       <path d={path} className="wp-path-glow" stroke={stroke} />
-      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={{ stroke, strokeWidth: 2.4 }} />
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={{ stroke, strokeWidth: 2.4, strokeDasharray: "7 6" }} />
       <path d={path} className="wp-path-flow" />
       <path d={path} className="wp-path-flow is-slow" />
     </>
@@ -169,10 +171,13 @@ export function GraphView({
   items,
   categories,
   dependencies,
+  route,
 }: {
   items: Item[];
   categories: Category[];
   dependencies: Dependency[];
+  /** The planned week, as on Next up. */
+  route: Route;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -180,8 +185,8 @@ export function GraphView({
     const itemsById = new Map(items.map((i) => [i.id, i]));
     const categoriesById = new Map(categories.map((c) => [c.id, c]));
     const dependents = dependentsOf(dependencies);
-    const path = recommendedPath(items, dependencies);
-    const onPath = new Set(path);
+    const sessions = sessionNumbers(route);
+    const firstSession = route.days.flatMap((d) => d.sessions)[0]?.item.id;
 
     const sizes = new Map(
       items.map((item) => [
@@ -213,40 +218,42 @@ export function GraphView({
           scores: { interest: item.interest, impact: item.impact, effort: item.effort },
           size: sizes.get(item.id)!,
           emphasis:
-            path.length === 0
+            sessions.size === 0
               ? "normal"
-              : item.id === path[0]
+              : item.id === firstSession
                 ? "start"
-                : onPath.has(item.id)
+                : sessions.has(item.id)
                   ? "path"
                   : "dimmed",
         },
       };
     });
 
-    // An edge is on the path when it joins two consecutive path steps.
-    const pathEdges = new Set(path.slice(1).map((id, i) => `${path[i]}->${id}`));
-    const edges: StarEdgeType[] = dependencies.map((d) => {
-      const id = `${d.depends_on_id}->${d.item_id}`;
-      const highlighted = pathEdges.has(id);
-      return {
-        id,
-        source: d.depends_on_id,
-        target: d.item_id,
-        type: "star",
-        data: { highlighted },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 16,
-          height: 16,
-          color: highlighted ? "#3ee0f5" : "rgb(232 235 247 / 0.45)",
-        },
-        zIndex: highlighted ? 1 : 0,
-      };
-    });
+    // Dependencies: faint structure lines.
+    const dependencyEdges: StarEdgeType[] = dependencies.map((d) => ({
+      id: `dep:${d.depends_on_id}->${d.item_id}`,
+      source: d.depends_on_id,
+      target: d.item_id,
+      type: "star",
+      data: { kind: "dependency" },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "rgb(232 235 247 / 0.45)" },
+      zIndex: 0,
+    }));
+    // The route: a hop between each pair of consecutive planned sessions,
+    // whether or not the two items depend on each other.
+    const routeEdges: StarEdgeType[] = routeHops(route).map(([from, to]) => ({
+      id: `route:${from}->${to}`,
+      source: from,
+      target: to,
+      type: "star",
+      data: { kind: "route" },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "#3ee0f5" },
+      zIndex: 1,
+    }));
+    const edges = [...dependencyEdges, ...routeEdges];
 
     return { nodes, edges };
-  }, [items, categories, dependencies]);
+  }, [items, categories, dependencies, route]);
 
   return (
     // Fills the whole window, underneath the floating header.
@@ -274,7 +281,7 @@ export function GraphView({
       )}
 
       <p className="pointer-events-none absolute bottom-5 left-1/2 hidden -translate-x-1/2 rounded-full border border-border bg-card px-4 py-1.5 text-xs text-muted-foreground backdrop-blur-xl sm:block">
-        Bigger stars are better value for the effort · the glowing route is the recommended path
+        Bigger stars are better value for the effort · the dashed route is your planned week, in session order
       </p>
 
       {editing && (
