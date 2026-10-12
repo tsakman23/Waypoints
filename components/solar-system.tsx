@@ -8,9 +8,10 @@ import { Vector3 } from "three";
 import type * as THREE from "three";
 import { Lock } from "lucide-react";
 import { ItemEditor } from "@/components/item-editor";
+import { coronaMaterial, planetMaterial, ringMaterial, sunMaterial } from "@/components/solar-shaders";
 import { TodaySortable } from "@/components/today-sortable";
 import type { Session } from "@/lib/planner";
-import { orbitPosition, type Planet, type SolarSystem } from "@/lib/solar";
+import { orbitPosition, SOLAR, type Planet, type SolarSystem } from "@/lib/solar";
 import type { Category, Dependency, Item } from "@/lib/types";
 
 /** Seconds the ship takes to fly between two planets on the route. */
@@ -257,6 +258,28 @@ function Ticker({ running }: { running: boolean }) {
   return null;
 }
 
+/** A sun: a churning shader surface plus a soft corona, both glowing through bloom. */
+function Sun({ system }: { system: SolarSystem }) {
+  const { time } = useClock();
+  const surface = useMemo(() => sunMaterial(system.color), [system.color]);
+  const corona = useMemo(() => coronaMaterial(system.color), [system.color]);
+  useEffect(() => () => surface.dispose(), [surface]);
+  useEffect(() => () => corona.dispose(), [corona]);
+  useFrame(() => {
+    surface.uniforms.uTime.value = time.current;
+  });
+  return (
+    <group position={[system.position[0], 0, system.position[1]]}>
+      <mesh material={surface}>
+        <sphereGeometry args={[SOLAR.sunRadius, 64, 64]} />
+      </mesh>
+      <mesh material={corona}>
+        <sphereGeometry args={[SOLAR.sunRadius * 1.9, 48, 48]} />
+      </mesh>
+    </group>
+  );
+}
+
 /** A sun, its orbits and its planets. */
 function SystemView({
   system,
@@ -271,15 +294,9 @@ function SystemView({
   onHover: (id: string | null) => void;
   onOpen: (id: string) => void;
 }) {
-  const [x, z] = system.position;
   return (
     <group>
-      {/* The sun: unlit and bright, so bloom makes it glow; its light colours nearby planets. */}
-      <mesh position={[x, 0, z]}>
-        <sphereGeometry args={[1.6, 48, 48]} />
-        <meshBasicMaterial color={system.color} toneMapped={false} />
-      </mesh>
-      <pointLight position={[x, 0, z]} color={system.color} intensity={60} distance={system.radius * 2.2} decay={1.4} />
+      <Sun system={system} />
 
       {system.planets.map((planet) => (
         <group key={planet.id}>
@@ -335,11 +352,38 @@ function PlanetView({
   onOpen: (id: string) => void;
 }) {
   const ref = useRef<THREE.Group>(null);
+  const body = useRef<THREE.Mesh>(null);
   const { time } = useClock();
-  useFrame(() => ref.current?.position.set(...worldPosition(system, planet, time.current)));
 
-  const locked = planet.tier === "locked";
-  const color = locked ? LOCKED_GREY : system.color;
+  // One shader per planet: its surface, lit from its own sun.
+  const material = useMemo(
+    () =>
+      planetMaterial({
+        color: system.color,
+        kind: planet.kind,
+        seed: planet.seed,
+        tier: planet.tier,
+        sun: [system.position[0], 0, system.position[1]],
+      }),
+    [system.color, system.position, planet.kind, planet.seed, planet.tier],
+  );
+  const ring = useMemo(
+    () => (planet.ringed ? ringMaterial(system.color, planet.radius * 1.45, planet.radius * 2.3) : null),
+    [planet.ringed, planet.radius, system.color],
+  );
+  // GPU resources aren't garbage-collected; free them when the planet goes.
+  useEffect(() => () => material.dispose(), [material]);
+  useEffect(() => () => ring?.dispose(), [ring]);
+
+  useFrame(() => {
+    ref.current?.position.set(...worldPosition(system, planet, time.current));
+    material.uniforms.uTime.value = time.current;
+    // Spin on its axis with the shared clock, so it pauses with everything else.
+    if (body.current) body.current.rotation.y = planet.seed + time.current * 0.12;
+    // Ease the glow towards its target rather than snapping.
+    const target = isHovered ? 1 : onRoute ? 0.55 : 0;
+    material.uniforms.uGlow.value += (target - material.uniforms.uGlow.value) * 0.15;
+  });
 
   return (
     <group ref={ref} position={worldPosition(system, planet, 0)}>
@@ -363,20 +407,16 @@ function PlanetView({
         <sphereGeometry args={[Math.max(1.3, planet.radius * 2.2), 16, 16]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      <mesh scale={isHovered ? 1.25 : 1}>
-        <sphereGeometry args={[planet.radius, 32, 32]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          // Planets on this week's route and the hovered one glow a little.
-          emissiveIntensity={isHovered ? 0.9 : onRoute ? 0.45 : planet.tier === "available" ? 0.15 : 0.05}
-          roughness={0.55}
-          metalness={0.1}
-          transparent={planet.tier === "parked" || planet.tier === "done"}
-          opacity={planet.tier === "done" ? 0.35 : planet.tier === "parked" ? 0.55 : 1}
-          wireframe={planet.tier === "parked"}
-        />
-      </mesh>
+      <group scale={isHovered ? 1.25 : 1}>
+        <mesh ref={body} material={material}>
+          <sphereGeometry args={[planet.radius, 48, 48]} />
+        </mesh>
+        {ring && (
+          <mesh material={ring} rotation={[-Math.PI / 2 + 0.45, 0, 0.2]}>
+            <ringGeometry args={[planet.radius * 1.45, planet.radius * 2.3, 96]} />
+          </mesh>
+        )}
+      </group>
 
     </group>
   );

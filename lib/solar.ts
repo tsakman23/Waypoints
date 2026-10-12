@@ -38,10 +38,18 @@ export type Orbit = {
   node: number;
 };
 
+/** What a planet looks like; picked from its id so it never changes. */
+export type PlanetKind = "rocky" | "ocean" | "gas";
+
 export type Planet = {
   id: string;
   title: string;
   tier: Tier;
+  kind: PlanetKind;
+  /** Gas giants sometimes have rings. */
+  ringed: boolean;
+  /** Offsets the surface pattern, so no two planets look alike. */
+  seed: number;
   /** Planet radius in world units, from its score. */
   radius: number;
   orbit: Orbit;
@@ -118,6 +126,17 @@ function radiusFor(score: number): number {
   return Math.min(1.1, Math.max(0.4, 0.3 + 0.18 * Math.sqrt(score)));
 }
 
+/**
+ * Big planets are usually gas giants, smaller ones rocky or ocean worlds.
+ * Finished items become small grey rocks.
+ */
+function kindFor(id: string, radius: number, tier: Tier): PlanetKind {
+  if (tier === "done") return "rocky";
+  const roll = hashUnit(id, 5);
+  if (radius >= 0.85) return roll < 0.65 ? "gas" : "ocean";
+  return roll < 0.5 ? "rocky" : "ocean";
+}
+
 function tierOf(item: Item, itemsById: Map<string, Item>, prereqs: Map<string, string[]>): Tier {
   if (item.status === "done") return "done";
   if (!isAvailable(item, itemsById, prereqs)) return "locked";
@@ -164,11 +183,16 @@ export function layoutGalaxy(items: Item[], categories: Category[], dependencies
       const planets: Planet[] = rated.map(({ item, tier, score }) => {
         a += SOLAR.orbitSpacing + (previousTier && tier !== previousTier ? SOLAR.bandGap : 0);
         previousTier = tier;
+        const radius = tier === "done" ? 0.3 : radiusFor(score);
+        const kind = kindFor(item.id, radius, tier);
         return {
           id: item.id,
           title: item.title,
           tier,
-          radius: tier === "done" ? 0.3 : radiusFor(score),
+          kind,
+          ringed: kind === "gas" && hashUnit(item.id, 6) > 0.45,
+          seed: hashUnit(item.id, 7) * 100,
+          radius,
           orbit: {
             a,
             e: 0.04 + 0.16 * hashUnit(item.id, 1),

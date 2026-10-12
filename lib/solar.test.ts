@@ -61,3 +61,16 @@ test("the same data always gives the same galaxy", () => {
   const items = [item("a", "A"), item("b", "A"), item("c", "B")];
   assert.deepEqual(layoutGalaxy(items, [cat("A"), cat("B")], []), layoutGalaxy(items, [cat("A"), cat("B")], []));
 });
+
+test("every planet gets a fixed look: kind, rings and seed", () => {
+  const items = ["a", "b", "c", "d", "e", "f"].map((id) => item(id, "A", "idea", id < "c" ? 5 : 1));
+  const [system] = layoutGalaxy([...items, item("old", "A", "done")], [cat("A")], []);
+  for (const p of system.planets) {
+    assert.ok(["rocky", "ocean", "gas"].includes(p.kind));
+    if (p.ringed) assert.equal(p.kind, "gas"); // only gas giants have rings
+  }
+  assert.equal(system.planets.find((p) => p.id === "old")!.kind, "rocky"); // finished: a grey rock
+  // Same ids, same looks.
+  const [again] = layoutGalaxy([...items, item("old", "A", "done")], [cat("A")], []);
+  assert.deepEqual(again.planets.map((p) => [p.kind, p.ringed, p.seed]), system.planets.map((p) => [p.kind, p.ringed, p.seed]));
+});
