@@ -35,8 +35,9 @@ export function Landing({ variant }: { variant: "public" | "member" }) {
           <span className="bg-(image:--glow) bg-clip-text text-transparent">interests</span>
         </h1>
         <p className="max-w-xl text-lg text-pretty text-muted-foreground">
-          You want to learn Rust, write a compiler, get back to the piano, run a 10k. Waypoints turns all of it into a
-          week you can follow, one session at a time, rotating between interests so none of them fades.
+          You want to get back to the piano, run a 10k, learn Rust, and finally read the books piling up on your shelf.
+          Waypoints turns all of it into a week you can follow, one session at a time, rotating between interests so
+          none of them fades.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <Button asChild size="lg" className="px-6">
