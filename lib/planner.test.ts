@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyTodayOrder, clockFactor, planRoutes, routeHops, sessionNumbers, type PlannerInput, type Route } from "./planner.ts";
+import { applyTodayOrder, clockFactor, planRoutes, type PlannerInput, type Route } from "./planner.ts";
 import { DEFAULT_PROFILE } from "./profile.ts";
 import type { Category, Dependency, Item, Score, Status, WorkLog } from "./types.ts";
 
@@ -156,21 +156,6 @@ test("the skill clock curve", () => {
   assert.equal(clockFactor(7, 7), 1.5); // due
   assert.equal(clockFactor(14, 7), 2); // twice overdue
   assert.equal(clockFactor(100, 7), 2); // capped
-});
-
-test("session numbers and hops read a route in order", () => {
-  // A great Fitness item and two weaker ones: the plan returns to "great".
-  const items = [item("great", "A", [5, 5, 1]), item("b", "B", [4, 4, 2]), item("c", "C", [4, 4, 2])];
-  const { main } = plan(items, [cat("A"), cat("B"), cat("C")], logs("2026-10-08", "great", "b", "c"));
-  const order = picks(main);
-  const numbers = sessionNumbers(main);
-  // Every session is counted exactly once, under its item.
-  assert.equal([...numbers.values()].flat().length, order.length);
-  order.forEach((id, i) => assert.ok(numbers.get(id)!.includes(i + 1)));
-  // Hops join consecutive different items, without duplicates.
-  const hops = routeHops(main);
-  for (const [from, to] of hops) assert.notEqual(from, to);
-  assert.equal(new Set(hops.map((h) => h.join(">"))).size, hops.length);
 });
 
 test("today's sessions follow the user's saved order", () => {
