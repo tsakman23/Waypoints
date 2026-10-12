@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -32,8 +32,25 @@ export function NavLinks() {
   // Before the browser paints, and again whenever the page changes.
   useLayoutEffect(moveToCurrent, [pathname, moveToCurrent]);
 
+  // The links move when the nav changes size (window resized, phone rotated,
+  // font finished loading), so measure again whenever it does.
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const observer = new ResizeObserver(moveToCurrent);
+    observer.observe(nav);
+    return () => observer.disconnect();
+  }, [moveToCurrent]);
+
   return (
-    <nav ref={navRef} onMouseLeave={moveToCurrent} onBlur={moveToCurrent} className="relative flex">
+    // min-w-0 lets the links shrink inside the header; if a screen is ever too
+    // narrow they scroll sideways (scrollbar hidden) instead of overflowing.
+    <nav
+      ref={navRef}
+      onMouseLeave={moveToCurrent}
+      onBlur={moveToCurrent}
+      className="relative flex min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
       {pill && (
         <span
           aria-hidden="true"
@@ -49,7 +66,7 @@ export function NavLinks() {
           onMouseEnter={(e) => moveTo(e.currentTarget)}
           onFocus={(e) => moveTo(e.currentTarget)}
           className={cn(
-            "relative rounded-full px-3 py-1.5 whitespace-nowrap transition-colors duration-200",
+            "relative shrink-0 rounded-full px-2 py-1.5 text-[13px] whitespace-nowrap transition-colors duration-200 sm:px-3 sm:text-sm",
             pathname === href ? "text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
