@@ -92,6 +92,7 @@ export function PlanView({
                 <SessionCard key={i} session={session} categoriesById={categoriesById} onOpen={setEditing} />
               ))
             )}
+            <Alternatives options={today.alternatives} categoriesById={categoriesById} onOpen={setEditing} />
           </section>
 
           {/* The rest of the week: compact rows. */}
@@ -108,6 +109,9 @@ export function PlanView({
                     <SessionRow key={i} session={session} categoriesById={categoriesById} onOpen={setEditing} />
                   ))
                 )}
+                <div className="px-2">
+                  <Alternatives options={day.alternatives} categoriesById={categoriesById} onOpen={setEditing} compact />
+                </div>
               </div>
             ))}
           </section>
@@ -136,7 +140,7 @@ type CardProps = {
   grip?: React.ReactNode;
 };
 
-/** A session today: the pick in full, with tags and the alternatives. */
+/** A session today: the pick in full, with its tags. */
 function SessionCard({ session, categoriesById, onOpen, grip }: CardProps) {
   const category = session.item.category_id ? categoriesById.get(session.item.category_id) : undefined;
   return (
@@ -159,7 +163,6 @@ function SessionCard({ session, categoriesById, onOpen, grip }: CardProps) {
           <Tags option={session} />
         </span>
       </button>
-      <Alternatives options={session.alternatives} categoriesById={categoriesById} onOpen={onOpen} />
       </div>
     </div>
   );
@@ -178,9 +181,6 @@ function SessionRow({ session, categoriesById, onOpen }: CardProps) {
         <span>{session.item.title}</span>
       </button>
       <Tags option={session} />
-      <span className="ml-auto">
-        <Alternatives options={session.alternatives} categoriesById={categoriesById} onOpen={onOpen} compact />
-      </span>
     </div>
   );
 }
@@ -196,7 +196,7 @@ function Tags({ option }: { option: Option }) {
   );
 }
 
-/** "or" chips for the session's alternatives, each opening its item. */
+/** "Or instead" chips for a day's alternatives, each opening its item. */
 function Alternatives({
   options,
   categoriesById,
@@ -211,7 +211,7 @@ function Alternatives({
   if (options.length === 0) return null;
   return (
     <span className={cn("flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground", !compact && "text-sm")}>
-      or
+      Or instead:
       {options.map((o) => {
         const category = o.item.category_id ? categoriesById.get(o.item.category_id) : undefined;
         return (

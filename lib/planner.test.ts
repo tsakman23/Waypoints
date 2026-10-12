@@ -74,8 +74,8 @@ test("only active items are planned: ideas aren't commitments yet", () => {
   const items = [item("idea", "A", [5, 5, 1], "idea"), item("active", "B", [2, 2, 4])];
   const { main } = plan(items, [cat("A"), cat("B")]);
   assert.deepEqual([...new Set(picks(main))], ["active"]);
-  for (const session of main.days.flatMap((d) => d.sessions)) {
-    assert.ok(session.alternatives.every((o) => o.item.status === "active"));
+  for (const day of main.days) {
+    assert.ok(day.alternatives.every((o) => o.item.status === "active"));
   }
 });
 
@@ -115,17 +115,27 @@ test("ideas, blocked, parked and done items are never planned", () => {
   assert.deepEqual([...new Set(picks(main))], ["open"]);
 });
 
-test("alternatives come from other interests, one per interest", () => {
+test("each day's alternatives come from interests it doesn't already have", () => {
   const items = [
     item("a1", "A", [5, 5, 1]),
     item("a2", "A", [5, 5, 1]),
     item("b1", "B", [3, 3, 1]),
     item("c1", "C", [2, 2, 1]),
+    item("d1", "D", [2, 2, 2]),
   ];
-  const { main } = plan(items, [cat("A"), cat("B"), cat("C")], logs("2026-10-08", "a1", "b1", "c1"));
-  const session = main.days[0].sessions[0];
-  assert.equal(session.item.category_id, "A");
-  assert.deepEqual(session.alternatives.map((o) => o.item.id), ["b1", "c1"]);
+  const categories = ["A", "B", "C", "D"].map((c) => cat(c));
+  const { main } = plan(items, categories, logs("2026-10-08", "a1", "b1", "c1", "d1"));
+  // Friday has one session, on A, so its alternatives are the best of the rest.
+  assert.equal(main.days[0].sessions[0].item.category_id, "A");
+  assert.deepEqual(main.days[0].alternatives.map((o) => o.item.id), ["b1", "c1"]);
+  // Every day: no alternative repeats an interest the day already has, and
+  // there's at most one per interest.
+  for (const day of main.days) {
+    const planned = new Set(day.sessions.map((s) => s.item.category_id));
+    const offered = day.alternatives.map((o) => o.item.category_id);
+    assert.ok(offered.every((c) => !planned.has(c)), `${day.date} offers an interest it already has`);
+    assert.equal(new Set(offered).size, offered.length);
+  }
 });
 
 test("alternative routes open with different items", () => {

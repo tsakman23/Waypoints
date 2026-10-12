@@ -7,8 +7,8 @@ import type { Category, Dependency, Item, Profile, WorkLog } from "./types.ts";
 // coming days, drawn only from active items (ideas aren't commitments yet).
 // Each session goes to the item with the best adjusted score; interests
 // rotate between sessions and across the week, neglected interests come
-// back on their skill clock, and each session offers alternatives from other
-// interests. See the "Waypoints Route Research" write-up.
+// back on their skill clock, and each day offers alternatives from interests
+// it doesn't already include. See the "Waypoints Route Research" write-up.
 
 /** Tunable numbers, kept together so they're easy to find and adjust. */
 export const PLAN = {
@@ -21,7 +21,7 @@ export const PLAN = {
    * no interest dominates: without it, two strong ones can take turns all week.
    */
   varietyPenalty: 0.8,
-  /** Alternatives offered per session, each from a different interest. */
+  /** Alternatives offered per day, each from an interest the day doesn't already have. */
   alternatives: 2,
   /** Extra whole plans offered besides the main one. */
   alternativeRoutes: 2,
@@ -40,10 +40,16 @@ export type Option = {
   due: boolean;
 };
 
-/** One work session: the pick, plus what else would be a good use of it. */
-export type Session = Option & { alternatives: Option[] };
+/** One work session on one item. */
+export type Session = Option;
 
-export type PlanDay = { date: string; weekday: number; sessions: Session[] };
+export type PlanDay = {
+  date: string;
+  weekday: number;
+  sessions: Session[];
+  /** Other good uses of the day, from interests it doesn't already include. */
+  alternatives: Option[];
+};
 
 /** A plan for the coming days. */
 export type Route = { days: PlanDay[] };
@@ -186,21 +192,24 @@ function planRoute(ctx: Context, avoid: Set<string>[]): Route {
         .find((list) => list.length > 0);
       const pick = (allowed ?? options)[0];
 
-      sessions.push({ ...pick, alternatives: alternativesFor(pick, options) });
+      sessions.push(pick);
       history.push(interestOf(pick.item));
       touched.set(interestOf(pick.item), date);
     }
-    days.push({ date, weekday, sessions });
+    // Rated as of the end of the day, so the day's own sessions count.
+    const options = ctx.available.map((item) => rate(item, date, history, touched, ctx)).sort(byRank);
+    days.push({ date, weekday, sessions, alternatives: alternativesFor(sessions, options) });
   }
   return { days };
 }
 
-/** The best option from each other interest, strongest first. */
-function alternativesFor(pick: Option, options: Option[]): Option[] {
+/** The best option from each interest the day doesn't already include, strongest first. */
+function alternativesFor(day: Session[], options: Option[]): Option[] {
+  const taken = new Set(day.map((s) => interestOf(s.item)));
   const best = new Map<string, Option>();
   for (const o of options) {
     const interest = interestOf(o.item);
-    if (interest === interestOf(pick.item) || best.has(interest)) continue;
+    if (taken.has(interest) || best.has(interest)) continue;
     best.set(interest, o); // options are sorted, so the first seen is the best
   }
   return [...best.values()].slice(0, PLAN.alternatives);
