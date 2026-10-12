@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogOut, Settings } from "lucide-react";
+import { CircleHelp, LogOut, Settings } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { NavLinks } from "@/components/nav-links";
 import { SetupWizard } from "@/components/setup-wizard";
@@ -33,6 +33,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {/* Never shrinks: the links give way (and scroll) before these do. */}
         <div className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap text-muted-foreground sm:gap-3">
           <span className="hidden max-w-56 truncate lg:inline">{data?.claims.email}</span>
+          <Link
+            href="/how-it-works"
+            aria-label="How Waypoints works"
+            className="rounded-full p-1.5 transition-colors duration-200 hover:text-foreground"
+          >
+            <CircleHelp className="size-4" />
+          </Link>
           <Link
             href="/settings"
             aria-label="Settings"

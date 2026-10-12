@@ -168,6 +168,34 @@
 .wp-row > td:first-child { transition: box-shadow 260ms var(--ease-out); }
 .wp-row:hover > td:first-child { box-shadow: inset 2px 0 0 var(--cyan), inset 10px 0 14px -10px var(--cyan); }
 
+/* --- Landing page illustrations (components/landing.tsx) ------------------- */
+
+/* A star appearing, then breathing. */
+@keyframes wp-appear { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes wp-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+.wp-appear { transform-box: fill-box; transform-origin: center; animation: wp-appear 900ms var(--ease-out) both; }
+.wp-breathe { animation: wp-breathe 3s ease-in-out infinite; }
+
+/* Score bars filling up, one after another. */
+@keyframes wp-fill { from { transform: scaleX(0); } }
+.wp-fill { transform-box: fill-box; transform-origin: left; animation: wp-fill 1.2s var(--ease-out) both; }
+
+/* A line drawing itself between two stars, again and again. */
+@keyframes wp-draw-loop { 0% { stroke-dashoffset: var(--len); } 45%, 100% { stroke-dashoffset: 0; } }
+.wp-draw { stroke-dasharray: var(--len); animation: wp-draw-loop 3.2s var(--ease-out) infinite; }
+
+/* Things popping in one by one (use --delay). */
+@keyframes wp-pop { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; } }
+.wp-pop { transform-box: fill-box; transform-origin: center; animation: wp-pop 500ms var(--ease-out) both; animation-delay: var(--delay, 0s); }
+
+/* A tick being drawn. */
+@keyframes wp-tick { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+.wp-tick { stroke-dasharray: 24; animation: wp-tick 600ms var(--ease-out) both; animation-delay: var(--delay, 0s); }
+
+/* Planets circling a sun at their own pace. */
+@keyframes wp-circle { to { transform: rotate(360deg); } }
+.wp-circle { transform-box: view-box; transform-origin: 50% 50%; animation: wp-circle var(--period, 12s) linear infinite; }
+
 /* Everyone who asks their OS for less motion gets a still sky and instant UI. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -40,10 +40,12 @@ export async function proxy(request: NextRequest) {
   const signedIn = Boolean(data?.claims);
 
   const { pathname } = request.nextUrl;
-  const isPublic = pathname === "/login" || pathname.startsWith("/auth/");
+  // The landing page, sign-in and the auth callbacks are open to everyone.
+  const isPublic = pathname === "/" || pathname === "/login" || pathname.startsWith("/auth/");
 
   if (!signedIn && !isPublic) return redirectTo("/login", request, response);
-  if (signedIn && pathname === "/login") return redirectTo("/", request, response);
+  // Signed in: skip the landing page and sign-in, straight to your week.
+  if (signedIn && (pathname === "/" || pathname === "/login")) return redirectTo("/next", request, response);
 
   return response;
 }

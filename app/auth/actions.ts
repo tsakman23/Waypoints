@@ -34,7 +34,7 @@ export async function authenticate(
 
   const { error } = await supabase.auth.signInWithPassword(credentials);
   if (error) return { error: error.message };
-  redirect("/");
+  redirect("/next");
 }
 
 /**
@@ -56,5 +56,5 @@ export async function signInWithGoogle() {
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/login");
+  redirect("/");
 }
