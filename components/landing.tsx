@@ -99,6 +99,33 @@ export function Landing({ variant }: { variant: "public" | "member" }) {
         </div>
       </section>
 
+      {/* What it learns from the check-ins */}
+      <section className="mx-auto w-full max-w-5xl px-4 pb-24 sm:px-8">
+        <div className="wp-glass flex flex-col gap-3 rounded-3xl p-8 sm:p-10">
+          <h2 className="font-heading text-xl font-bold tracking-wide">It learns from you</h2>
+          <p className="text-muted-foreground">
+            Each check-in is compared with what was planned for that day. Over time the plan leans towards what you
+            actually do.
+          </p>
+          <ul className="grid gap-4 text-muted-foreground sm:grid-cols-3">
+            <li>
+              <span className="block font-semibold text-foreground">What you skip</span>
+              Things you keep skipping come up a little less, and things you do anyway a little more. A few days
+              barely move it; weeks of the same pattern do.
+            </li>
+            <li>
+              <span className="block font-semibold text-foreground">Your own rhythm</span>
+              If you really come back to running every 10 days, not 7, its clock slowly shifts towards 10.
+            </li>
+            <li>
+              <span className="block font-semibold text-foreground">Your settings win</span>
+              Set an interest&apos;s interval yourself and it&apos;s used as it is. Today&apos;s plan says when
+              something it learned is behind a suggestion.
+            </li>
+          </ul>
+        </div>
+      </section>
+
       {/* Final call to action */}
       <section className="mx-auto flex max-w-2xl flex-col items-center gap-5 px-4 pb-28 text-center">
         <h2 className="font-heading text-2xl font-bold tracking-wide sm:text-3xl">Ready when you are</h2>

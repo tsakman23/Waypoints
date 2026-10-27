@@ -35,6 +35,11 @@ export const LEARN = {
   /** A learned interval stays within these multiples of the preset. */
   minIntervalRatio: 0.5,
   maxIntervalRatio: 2,
+  /** A plan reason mentions follow-through only below or above these multipliers. */
+  skipReasonBelow: 0.85,
+  keenReasonAbove: 1.15,
+  /** A plan reason mentions a learned interval only once the evidence has at least this weight. */
+  intervalReasonWeight: 0.5,
 };
 
 // Follow-through -----------------------------------------------------------------
