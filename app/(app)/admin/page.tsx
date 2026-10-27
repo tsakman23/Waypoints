@@ -4,6 +4,7 @@ import { pool } from "@/lib/backtest";
 import { getAdminOverview, isAdmin } from "@/lib/data";
 import { addDays } from "@/lib/profile";
 import type { AdminUserRow } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Admin" };
 
@@ -16,7 +17,9 @@ const percent = (fraction: number) => `${Math.round(Math.abs(fraction) * 100)}%`
 export default async function AdminPage() {
   if (!(await isAdmin())) notFound();
   const rows = await getAdminOverview();
-  const pooled = pool(rows);
+  // Demo and test accounts are listed but never counted: their history is made up.
+  const counted = rows.filter((r) => !r.excluded);
+  const pooled = pool(counted);
   // The database works in UTC, so "this week" does too.
   const weekAgo = addDays(new Date().toISOString().slice(0, 10), -7);
 
@@ -25,7 +28,8 @@ export default async function AdminPage() {
       <div>
         <h1 className="font-heading text-xl font-bold tracking-wide">Admin</h1>
         <p className="text-sm text-muted-foreground">
-          Anonymised: score totals and activity dates only, never titles, notes or emails.
+          Anonymised: score totals and activity dates only, never titles, notes or emails. Excluded accounts
+          (demo and test) are listed but left out of every number.
         </p>
       </div>
 
@@ -49,9 +53,9 @@ export default async function AdminPage() {
       </section>
 
       <div className="grid grid-cols-3 gap-3">
-        <Stat label="Have checked in" value={rows.length} />
-        <Stat label="Active this week" value={rows.filter((r) => r.last_answered >= weekAgo).length} />
-        <Stat label="Evaluated" value={rows.filter((r) => r.predictions > 0).length} />
+        <Stat label="Have checked in" value={counted.length} />
+        <Stat label="Active this week" value={counted.filter((r) => r.last_answered >= weekAgo).length} />
+        <Stat label="Evaluated" value={counted.filter((r) => r.predictions > 0).length} />
       </div>
 
       {rows.length > 0 && <UserTable rows={rows} />}
@@ -88,8 +92,11 @@ function UserTable({ rows }: { rows: AdminUserRow[] }) {
           {rows.map((r) => {
             const own = pool([r]);
             return (
-              <tr key={r.label} className="border-t border-border">
-                <td className="px-4 py-3 font-mono text-xs">{r.label}</td>
+              <tr key={r.label} className={cn("border-t border-border", r.excluded && "opacity-50")}>
+                <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">
+                  {r.label}
+                  {r.excluded && <span className="ml-2 font-sans text-muted-foreground">excluded</span>}
+                </td>
                 <td className="px-4 py-3 text-right">{r.answered_days}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{r.last_answered}</td>
                 <td className="px-4 py-3 text-right">{r.current_streak}</td>

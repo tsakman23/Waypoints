@@ -200,8 +200,18 @@ as $$
   select exists (select 1 from public.admins where user_id = (select auth.uid()));
 $$;
 
+-- Accounts left out of the admin page's statistics (demo and test accounts).
+-- RLS with no policies: changed only in the SQL editor.
+
+create table stats_excluded (
+  user_id uuid primary key references auth.users on delete cascade
+);
+
+alter table stats_excluded enable row level security;
+
 -- One row per user who has answered at least one check-in: an anonymous,
--- stable label, activity dates and their evaluation totals. Admins only.
+-- stable label, activity dates, their evaluation totals, and whether they're
+-- excluded from stats. Admins only.
 create function admin_overview()
 returns table (
   label              text,
@@ -211,7 +221,8 @@ returns table (
   days               integer,
   predictions        integer,
   model_brier_sum    double precision,
-  baseline_brier_sum double precision
+  baseline_brier_sum double precision,
+  excluded           boolean
 )
 language plpgsql stable security definer set search_path = ''
 as $$
@@ -254,7 +265,8 @@ begin
     coalesce(e.days, 0),
     coalesce(e.predictions, 0),
     coalesce(e.model_brier_sum, 0),
-    coalesce(e.baseline_brier_sum, 0)
+    coalesce(e.baseline_brier_sum, 0),
+    exists (select 1 from public.stats_excluded x where x.user_id = p.user_id)
   from per_user p
   left join public.evaluations e on e.user_id = p.user_id
   order by p.last_answered desc, 1;

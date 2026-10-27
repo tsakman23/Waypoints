@@ -104,4 +104,6 @@ export type AdminUserRow = Evaluation & {
   answered_days: number;
   last_answered: string;
   current_streak: number;
+  /** A demo or test account: shown, but left out of every statistic. */
+  excluded: boolean;
 };
