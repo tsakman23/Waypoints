@@ -1,6 +1,6 @@
 # Waypoints
 
-A planner for everything you want to do. Add your interests and projects, connect what depends on what, and Waypoints plans your week: one interest per session, rotating so none of them fades, with skills you haven't touched in a while brought back before they're forgotten. Check in each morning, drag today's sessions into the order you'll do them, and watch a ship fly your route through a solar system of your interests.
+A planner for everything you want to do. Add your interests and projects, connect what depends on what, and Waypoints plans your week: one interest per session, rotating so none of them fades, with skills you haven't touched in a while brought back before they're forgotten. Check in each morning and the plan learns from what you actually do, drag today's sessions into the order you'll do them, and watch a ship fly your route through a solar system of your interests.
 
 Live at **https://waypoints-teal.vercel.app**.
 
@@ -179,16 +179,23 @@ proxy.ts                   runs before every request: refreshes the session, gua
 Plans the next 7 days within the time you set, one interest per session, from **active** items whose prerequisites are done. Each session goes to the item with the best adjusted score:
 
 ```
-adjusted = value for effort × skill clock × repeat penalty × variety penalty
+adjusted = value for effort × follow-through × skill clock × repeat penalty × variety penalty
 ```
 
 - **Value for effort** (`lib/scoring.ts`): (interest + impact + a boost for what the item unlocks, halved per step away) ÷ effort.
-- **Skill clock**: each category has a skill type with a resurfacing interval (Fitness 7 days, Language 21, Technical 28, Instrument 42, Creative 28, Other 28; `lib/skills.ts`). An interest left untouched gets pulled forward: ×1 while fresh, ×1.5 when due, up to ×2.
+- **Follow-through** (`lib/learning.ts`): learned from the daily check-ins. Each morning's plan is saved, and the next check-in shows what was actually done. Each item's chance of being done is a Beta-Binomial estimate shrunk towards its category's rate, and each category's towards your overall rate (4 pretend days each), so a few days of history barely move it. The factor is that chance relative to your overall rate, capped to 0.5–1.5, and exactly 1 with no history.
+- **Skill clock**: each category has a skill type with a resurfacing interval (Fitness 7 days, Language 21, Technical 28, Instrument 42, Creative 28, Other 28; `lib/skills.ts`). Left automatic, the interval moves towards how often you really return (the median gap between work days, weighted by how many gaps there are, within half to double the preset); one set by hand is used as is. An interest left untouched gets pulled forward: ×1 while fresh, ×1.5 when due, up to ×2.
 - **Repeat penalty**: ×0.7 / 0.85 / 0.95 for the same interest one, two or three sessions back, so a session never switches interests midway but the plan rotates.
 - **Variety penalty**: ×0.8 for every earlier session of the same interest that week, so two strong interests can't take turns all week.
 - **Alternatives**: each day offers the best options from interests it doesn't already include, and there are two alternative routes that start differently.
 
-The interval defaults come from research on spacing, skill decay and motivation; see the "Waypoints Route Research" write-up. Every tunable number lives in the `PLAN` object at the top of `lib/planner.ts`.
+Today's sessions on Next up say why in a few words when the learning is behind them ("You often skip this", "Due · back to Fitness about every 10 days"; `lib/reasons.ts`).
+
+The interval defaults come from research on spacing, skill decay and motivation; see the "Waypoints Route Research" write-up. Every tunable number lives in the `PLAN` object at the top of `lib/planner.ts`, and the learning's in `LEARN` in `lib/learning.ts`.
+
+### Does the learning work? (`lib/backtest.ts`)
+
+A walk-forward backtest replays your answered days in order, predicting each one only from the days before it, and compares the model's predictions with a baseline that guesses your overall rate, using the Brier score. Settings shows your own result after 14 answered days. Each check-in saves your totals (sums only), and `/admin` pools everyone's, so each prediction counts once.
 
 ### The solar system (`components/solar-system.tsx`, `lib/solar.ts`)
 
@@ -196,4 +203,4 @@ Each interest is a sun and its items are planets on elliptical orbits that follo
 
 ### Tests
 
-`npm test` runs the unit tests in `lib/`: dependency cycles, availability and scoring, list sorting and filtering, timezones and session budgets, the planner (rotation, skill clocks, variety, alternatives, saved order), and the orbital maths (Kepler's laws, layout, determinism).
+`npm test` runs the unit tests in `lib/`: dependency cycles, availability and scoring, list sorting and filtering, timezones and session budgets, the planner (rotation, skill clocks, variety, alternatives, saved order), the learning (cold start, shrinkage, caps, hand-set intervals, determinism), the backtest (no peeking at the future, no false gains) and pooling, plan reasons, and the orbital maths (Kepler's laws, layout, determinism).
