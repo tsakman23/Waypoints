@@ -1,5 +1,5 @@
 import { dependentsOf, isAvailable, prerequisitesOf } from "./graph.ts";
-import { sessionsOn, type LocalDay } from "./profile.ts";
+import { addDays, daysBetween, sessionsOn, type LocalDay } from "./profile.ts";
 import { scoreOf } from "./scoring.ts";
 import { SKILL_PRESETS } from "./skills.ts";
 import type { Category, Dependency, Item, Profile, WorkLog } from "./types.ts";
@@ -66,20 +66,6 @@ export type PlannerInput = {
   /** Today as the user sees it, from localDay(). */
   today: LocalDay;
 };
-
-// Dates ---------------------------------------------------------------------
-// Plain YYYY-MM-DD strings; arithmetic at noon UTC stays clear of DST edges.
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const noon = (date: string) => Date.parse(`${date}T12:00:00Z`);
-
-export function addDays(date: string, days: number): string {
-  return new Date(noon(date) + days * DAY_MS).toISOString().slice(0, 10);
-}
-
-export function daysBetween(from: string, to: string): number {
-  return Math.round((noon(to) - noon(from)) / DAY_MS);
-}
 
 // Skill clock -----------------------------------------------------------------
 

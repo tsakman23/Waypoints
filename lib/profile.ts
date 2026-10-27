@@ -44,6 +44,18 @@ export function localDay(moment: Date, timeZone: string): LocalDay {
   };
 }
 
+/** Days as `YYYY-MM-DD` strings: arithmetic at noon UTC stays clear of DST edges. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+const noon = (date: string) => Date.parse(`${date}T12:00:00Z`);
+
+export function addDays(date: string, days: number): string {
+  return new Date(noon(date) + days * DAY_MS).toISOString().slice(0, 10);
+}
+
+export function daysBetween(from: string, to: string): number {
+  return Math.round((noon(to) - noon(from)) / DAY_MS);
+}
+
 /** The day before a `YYYY-MM-DD` date, as a `YYYY-MM-DD` date. */
 export function previousDay(date: string): string {
   // Noon UTC keeps the arithmetic clear of any daylight-saving edge.
