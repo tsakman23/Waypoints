@@ -1,12 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { backtest } from "@/lib/backtest";
 import { getData, getPlanSnapshots, getProfile, getWorkLogs } from "@/lib/data";
 import { wouldCreateCycle } from "@/lib/graph";
 import { planRoutes } from "@/lib/planner";
 import { createClient } from "@/lib/supabase/server";
 import { isValidTimeZone, localDay, yesterdayIn } from "@/lib/profile";
-import { SKILL_TYPES, type CategoryInput, type ItemInput, type Profile, type SnapshotSession } from "@/lib/types";
+import {
+  SKILL_TYPES,
+  type CategoryInput,
+  type Evaluation,
+  type ItemInput,
+  type Profile,
+  type SnapshotSession,
+} from "@/lib/types";
 
 // Server actions can be called with any payload, not just what our forms
 // send. Row-level security still guarantees users can only touch their own
@@ -232,18 +240,22 @@ export async function submitCheckIn(itemIds: string[]): Promise<ActionResult> {
     .eq("day", day);
   if (answerError) return { error: answerError.message };
 
-  const snapshotError = await snapshotToday();
-  if (snapshotError) return { error: snapshotError };
+  const afterError = await afterCheckIn();
+  if (afterError) return { error: afterError };
   return refresh();
 }
 
 /**
- * Saves the plan the user is about to see this morning, so tomorrow's
- * check-in can be compared with it. Planned with the same data and planner as
- * Next up, after yesterday's answers are in. Only the first snapshot of a day
- * is kept: it records what was suggested, not later changes.
+ * Once yesterday's answers are in:
+ * - saves the plan the user is about to see this morning, so tomorrow's
+ *   check-in can be compared with it. Planned with the same data and planner
+ *   as Next up. Only the first snapshot of a day is kept: it records what was
+ *   suggested, not later changes.
+ * - re-runs their backtest and saves its totals, for the admin page's pooled
+ *   evaluation. It runs here, in their own session on their own data, so no
+ *   one else's history is ever read.
  */
-async function snapshotToday(): Promise<string | undefined> {
+async function afterCheckIn(): Promise<string | undefined> {
   try {
     const [{ items, categories, dependencies }, profile, workLogs, snapshots] = await Promise.all([
       getData(),
@@ -263,7 +275,22 @@ async function snapshotToday(): Promise<string | undefined> {
     const { error } = await supabase
       .from("plan_snapshots")
       .upsert({ day: today.date, sessions }, { onConflict: "user_id,day", ignoreDuplicates: true });
-    return error?.message;
+    if (error) return error.message;
+
+    // Nothing to save until there's enough history to mean anything.
+    const result = backtest({ items, categories, workLogs, snapshots });
+    if (!result) return;
+    const n = result.predictions.length;
+    const evaluation: Evaluation = {
+      days: result.days,
+      predictions: n,
+      model_brier_sum: result.modelScore * n,
+      baseline_brier_sum: result.baselineScore * n,
+    };
+    const { error: evaluationError } = await supabase
+      .from("evaluations")
+      .upsert({ ...evaluation, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    return evaluationError?.message;
   } catch (error) {
     // The loaders throw on database errors; report it like any other.
     return error instanceof Error ? error.message : "Couldn't save today's plan.";
