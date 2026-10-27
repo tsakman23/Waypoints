@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { yesterdayIn } from "@/lib/profile";
-import type { Category, Dependency, Item, Profile, WorkLog } from "@/lib/types";
+import type { Category, Dependency, Item, PlanSnapshot, Profile, WorkLog } from "@/lib/types";
 
 export type Data = {
   items: Item[];
@@ -89,6 +89,14 @@ export async function getCheckIn(profile: Profile): Promise<CheckIn | null> {
 export async function getWorkLogs(): Promise<WorkLog[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("work_logs").select("item_id, day").order("day", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+/** The signed-in user's saved daily plans, oldest first, for learning. */
+export async function getPlanSnapshots(): Promise<PlanSnapshot[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("plan_snapshots").select("day, sessions, answered").order("day");
   if (error) throw new Error(error.message);
   return data ?? [];
 }

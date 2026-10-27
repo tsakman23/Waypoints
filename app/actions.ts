@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getData, getProfile, getWorkLogs } from "@/lib/data";
+import { getData, getPlanSnapshots, getProfile, getWorkLogs } from "@/lib/data";
 import { wouldCreateCycle } from "@/lib/graph";
 import { planRoutes } from "@/lib/planner";
 import { createClient } from "@/lib/supabase/server";
@@ -245,14 +245,15 @@ export async function submitCheckIn(itemIds: string[]): Promise<ActionResult> {
  */
 async function snapshotToday(): Promise<string | undefined> {
   try {
-    const [{ items, categories, dependencies }, profile, workLogs] = await Promise.all([
+    const [{ items, categories, dependencies }, profile, workLogs, snapshots] = await Promise.all([
       getData(),
       getProfile(),
       getWorkLogs(),
+      getPlanSnapshots(),
     ]);
     if (!profile) return;
     const today = localDay(new Date(), profile.timezone);
-    const { main } = planRoutes({ items, dependencies, categories, workLogs, profile, today });
+    const { main } = planRoutes({ items, dependencies, categories, workLogs, snapshots, profile, today });
     const sessions: SnapshotSession[] = (main.days[0]?.sessions ?? []).map((s) => ({
       item_id: s.item.id,
       category_id: s.item.category_id,

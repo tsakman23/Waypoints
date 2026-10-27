@@ -1,14 +1,15 @@
 import { PlanView } from "@/components/plan-view";
-import { getData, getProfile, getWorkLogs } from "@/lib/data";
+import { getData, getPlanSnapshots, getProfile, getWorkLogs } from "@/lib/data";
 import { planRoutes } from "@/lib/planner";
 import { localDay } from "@/lib/profile";
 
 /** Next up: the planned week, day by day, with alternatives. */
 export default async function NextUpPage() {
-  const [{ items, categories, dependencies }, profile, workLogs] = await Promise.all([
+  const [{ items, categories, dependencies }, profile, workLogs, snapshots] = await Promise.all([
     getData(),
     getProfile(),
     getWorkLogs(),
+    getPlanSnapshots(),
   ]);
   // No profile yet: the layout is showing the setup wizard instead.
   if (!profile) return null;
@@ -18,6 +19,7 @@ export default async function NextUpPage() {
     dependencies,
     categories,
     workLogs,
+    snapshots,
     profile,
     today: localDay(new Date(), profile.timezone),
   });
