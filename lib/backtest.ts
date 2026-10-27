@@ -1,4 +1,5 @@
 import { LEARN, learnPreferences, preferenceOf, type LearningInput } from "./learning.ts";
+import type { Evaluation } from "./types.ts";
 
 // Does the learning actually predict you? A walk-forward backtest: replay the
 // answered days in order, and before each one, train the model only on the
@@ -72,6 +73,38 @@ export function backtest({ items, categories, workLogs, snapshots }: Omit<Learni
   const baselineScore = mean((p) => brier(p.baseline, p.done));
   return {
     days: answered.length,
+    predictions,
+    modelScore,
+    baselineScore,
+    improvement: baselineScore === 0 ? 0 : 1 - modelScore / baselineScore,
+  };
+}
+
+export type Pooled = {
+  /** Users with an evaluation. */
+  users: number;
+  predictions: number;
+  /** Brier scores over every prediction from every user; lower is better. */
+  modelScore: number;
+  baselineScore: number;
+  /** How much lower the model's score is than the baseline's, as a fraction. */
+  improvement: number;
+};
+
+/**
+ * Everyone's backtests as one: total Brier over total predictions, so each
+ * prediction counts once, whoever made it. (Averaging per-user scores would
+ * let a user with 5 predictions weigh as much as one with 500.) Null when
+ * there's nothing to pool.
+ */
+export function pool(evaluations: Evaluation[]): Pooled | null {
+  const counted = evaluations.filter((e) => e.predictions > 0);
+  const predictions = counted.reduce((sum, e) => sum + e.predictions, 0);
+  if (predictions === 0) return null;
+  const modelScore = counted.reduce((sum, e) => sum + e.model_brier_sum, 0) / predictions;
+  const baselineScore = counted.reduce((sum, e) => sum + e.baseline_brier_sum, 0) / predictions;
+  return {
+    users: counted.length,
     predictions,
     modelScore,
     baselineScore,
