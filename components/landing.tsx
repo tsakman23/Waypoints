@@ -127,13 +127,19 @@ export function Landing({ variant }: { variant: "public" | "member" }) {
       </section>
 
       {/* Final call to action */}
-      <section className="mx-auto flex max-w-2xl flex-col items-center gap-5 px-4 pb-28 text-center">
+      <section className="mx-auto flex max-w-2xl flex-col items-center gap-5 px-4 pb-20 text-center">
         <h2 className="font-heading text-2xl font-bold tracking-wide sm:text-3xl">Ready when you are</h2>
         <p className="text-muted-foreground">Set your time, add a few interests, and see your first week in a minute.</p>
         <Button asChild size="lg" className="px-8">
           <Link href={cta.href}>{cta.label}</Link>
         </Button>
       </section>
+
+      {/* Small print */}
+      <footer className="mx-auto max-w-xl px-4 pb-10 text-center text-xs text-muted-foreground/70">
+        To measure how well the planner works, Waypoints keeps anonymous usage statistics: how often plans are
+        followed and when you check in, never what your plans are.
+      </footer>
     </div>
   );
 }

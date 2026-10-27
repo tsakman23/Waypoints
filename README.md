@@ -119,8 +119,19 @@ Google refuses to sign in inside embedded browsers (some in-app or IDE browser p
 | `20261009_route_planning.sql` | skill type and interval on categories, the `work_logs` table, the `profiles` table |
 | `20261011_today_order.sql` | today's saved session order on profiles |
 | `20261027_learning.sql` | automatic (null) resurfacing intervals on categories, the `plan_snapshots` table |
+| `20261028_admin.sql` | the `evaluations` and `admins` tables, and the `is_admin` and `admin_overview` functions |
 
 Run a migration **before** deploying code that needs it: the app asks for the new columns by name, and a missing column is an error.
+
+### Admins
+
+`/admin` shows pooled planner accuracy and activity across all users, anonymised, and is only visible to admins. Add one in the SQL Editor:
+
+```sql
+insert into admins (user_id) select id from auth.users where email = 'you@example.com';
+```
+
+The admin page only ever sees score totals and activity dates through `admin_overview()`, never titles, notes or emails.
 
 ---
 

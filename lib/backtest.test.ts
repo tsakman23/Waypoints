@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { backtest } from "./backtest.ts";
+import { backtest, pool } from "./backtest.ts";
 import { LEARN } from "./learning.ts";
 import { addDays } from "./profile.ts";
 import type { Category, Item, PlanSnapshot, WorkLog } from "./types.ts";
@@ -78,4 +78,35 @@ test("unanswered days are neither replayed nor learned from", () => {
   const data = history(40, () => ["keen"]);
   const unanswered = { ...data, snapshots: data.snapshots.map((s, i) => (i % 2 ? s : { ...s, answered: false })) };
   assert.equal(backtest(unanswered)?.days, 20);
+});
+
+// Pooling ---------------------------------------------------------------------------
+
+test("pooling weights every prediction equally, not every user", () => {
+  // A: 500 predictions averaging 0.1 (model) and 0.2 (baseline).
+  // B: 5 predictions averaging 0.4 and 0.2.
+  const pooled = pool([
+    { days: 100, predictions: 500, model_brier_sum: 50, baseline_brier_sum: 100 },
+    { days: 14, predictions: 5, model_brier_sum: 2, baseline_brier_sum: 1 },
+  ])!;
+  assert.equal(pooled.users, 2);
+  assert.equal(pooled.predictions, 505);
+  // (50 + 2) / 505, not the average of 0.1 and 0.4.
+  assert.equal(pooled.modelScore, 52 / 505);
+  assert.equal(pooled.baselineScore, 101 / 505);
+  // Equal mathematically; compared with a tolerance because the division order differs.
+  assert.ok(Math.abs(pooled.improvement - (1 - 52 / 101)) < 1e-12);
+});
+
+test("nothing to pool gives no score", () => {
+  assert.equal(pool([]), null);
+  assert.equal(pool([{ days: 0, predictions: 0, model_brier_sum: 0, baseline_brier_sum: 0 }]), null);
+});
+
+test("pooling one user's saved totals gives back their own scores", () => {
+  const own = backtest(history(30, () => ["keen"]))!;
+  const n = own.predictions.length;
+  const pooled = pool([{ days: own.days, predictions: n, model_brier_sum: own.modelScore * n, baseline_brier_sum: own.baselineScore * n }])!;
+  assert.ok(Math.abs(pooled.modelScore - own.modelScore) < 1e-12);
+  assert.ok(Math.abs(pooled.improvement - own.improvement) < 1e-12);
 });

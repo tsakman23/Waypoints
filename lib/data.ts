@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { yesterdayIn } from "@/lib/profile";
-import type { Category, Dependency, Item, PlanSnapshot, Profile, WorkLog } from "@/lib/types";
+import type { AdminUserRow, Category, Dependency, Item, PlanSnapshot, Profile, WorkLog } from "@/lib/types";
 
 export type Data = {
   items: Item[];
@@ -97,6 +97,25 @@ export async function getWorkLogs(): Promise<WorkLog[]> {
 export async function getPlanSnapshots(): Promise<PlanSnapshot[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("plan_snapshots").select("day, sessions, answered").order("day");
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+/** Whether the signed-in user is an admin (listed in the admins table). */
+export async function isAdmin(): Promise<boolean> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("is_admin");
+  if (error) throw new Error(error.message);
+  return data === true;
+}
+
+/**
+ * Every active user, anonymised: a label, activity dates and backtest totals.
+ * Admins only; the database function refuses anyone else.
+ */
+export async function getAdminOverview(): Promise<AdminUserRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_overview");
   if (error) throw new Error(error.message);
   return data ?? [];
 }

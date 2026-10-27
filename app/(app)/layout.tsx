@@ -1,16 +1,16 @@
 import Link from "next/link";
-import { CircleHelp, LogOut, Settings } from "lucide-react";
+import { CircleHelp, LogOut, Settings, ShieldCheck } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { NavLinks } from "@/components/nav-links";
 import { SetupWizard } from "@/components/setup-wizard";
 import { CheckInDialog } from "@/components/check-in-dialog";
-import { getCheckIn, getProfile } from "@/lib/data";
+import { getCheckIn, getProfile, isAdmin } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 
 /** Floating glass header over every signed-in view, and first-run setup. */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
-  const [{ data }, profile] = await Promise.all([supabase.auth.getClaims(), getProfile()]);
+  const [{ data }, profile, admin] = await Promise.all([supabase.auth.getClaims(), getProfile(), isAdmin()]);
   // Only once setup is done: then, at most once a day.
   const checkIn = profile ? await getCheckIn(profile) : null;
 
@@ -33,6 +33,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {/* Never shrinks: the links give way (and scroll) before these do. */}
         <div className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap text-muted-foreground sm:gap-3">
           <span className="hidden max-w-56 truncate lg:inline">{data?.claims.email}</span>
+          {/* Only admins see the way in; to anyone else /admin doesn't exist. */}
+          {admin && (
+            <Link
+              href="/admin"
+              aria-label="Admin"
+              className="rounded-full p-1.5 transition-colors duration-200 hover:text-foreground"
+            >
+              <ShieldCheck className="size-4" />
+            </Link>
+          )}
           <Link
             href="/how-it-works"
             aria-label="How Waypoints works"

@@ -86,3 +86,22 @@ export type Profile = {
   /** The user's own order for that day's sessions, as item ids. */
   today_order: string[];
 };
+
+/**
+ * A user's latest backtest totals, saved at check-in. Sums, not averages,
+ * so they pool exactly across users.
+ */
+export type Evaluation = {
+  days: number;
+  predictions: number;
+  model_brier_sum: number;
+  baseline_brier_sum: number;
+};
+
+/** One user as the admin page sees them: an anonymous label, activity and evaluation totals. */
+export type AdminUserRow = Evaluation & {
+  label: string;
+  answered_days: number;
+  last_answered: string;
+  current_streak: number;
+};
