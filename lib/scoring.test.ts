@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { nextUp, unlockBoost, unlockedGoals } from "./scoring.ts";
+import { scoreOf, unlockBoost, unlockedGoals } from "./scoring.ts";
 import { dependentsOf } from "./graph.ts";
 import type { Dependency, Item, Score, Status } from "./types.ts";
 
@@ -65,35 +65,18 @@ test("a prerequisite of a big goal outranks a slightly better standalone item", 
     item("rust", 3, 3, 3),
     item("standalone", 4, 4, 3),
   ];
-  const ranked = nextUp(items, [edge("compiler", "rust")]);
-  // compiler is blocked by rust, so it isn't suggested.
-  assert.deepEqual(
-    ranked.map((s) => s.item.id),
-    ["rust", "standalone"],
-  );
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const dependents = dependentsOf([edge("compiler", "rust")]);
+  const score = (id: string) => scoreOf(byId.get(id)!, byId, dependents).score;
   // rust: (6 + 10 * 0.5) / 3; standalone: 8 / 3.
-  assert.equal(ranked[0].score, 11 / 3);
-  assert.equal(ranked[1].score, 8 / 3);
+  assert.equal(score("rust"), 11 / 3);
+  assert.equal(score("standalone"), 8 / 3);
+  assert.ok(score("rust") > score("standalone"));
 });
 
 test("higher effort lowers the score", () => {
-  const ranked = nextUp([item("hard", 3, 3, 5), item("easy", 3, 3, 1)], []);
-  assert.deepEqual(
-    ranked.map((s) => s.item.id),
-    ["easy", "hard"],
-  );
-});
-
-test("done, blocked and parked items are left out", () => {
-  const items = [
-    item("done", 3, 3, 3, "done"),
-    item("parked", 3, 3, 3, "parked"),
-    item("blocked", 3, 3, 3),
-    item("open", 3, 3, 3, "active"),
-  ];
-  const ranked = nextUp(items, [edge("blocked", "open")]);
-  assert.deepEqual(
-    ranked.map((s) => s.item.id),
-    ["open"],
-  );
+  const items = [item("hard", 3, 3, 5), item("easy", 3, 3, 1)];
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const score = (id: string) => scoreOf(byId.get(id)!, byId, new Map()).score;
+  assert.ok(score("easy") > score("hard"));
 });

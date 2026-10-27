@@ -1,5 +1,4 @@
-import { dependentsOf, isAvailable, prerequisitesOf } from "./graph.ts";
-import type { Dependency, Item } from "./types.ts";
+import type { Item } from "./types.ts";
 
 /** How much an unlocked goal's value shrinks per step away. */
 export const DECAY = 0.5;
@@ -72,19 +71,4 @@ export function scoreOf(
   const unlocks = unlockedGoals(item.id, itemsById, dependents);
   const boost = unlocks.reduce((sum, u) => sum + u.contribution, 0);
   return { item, value, boost, score: (value + boost) / item.effort, unlocks };
-}
-
-/**
- * Available, non-parked items ranked by (value + boost) / effort,
- * highest first.
- */
-export function nextUp(items: Item[], deps: Dependency[]): Suggestion[] {
-  const itemsById = new Map(items.map((i) => [i.id, i]));
-  const prereqs = prerequisitesOf(deps);
-  const dependents = dependentsOf(deps);
-
-  return items
-    .filter((i) => i.status !== "parked" && isAvailable(i, itemsById, prereqs))
-    .map((item) => scoreOf(item, itemsById, dependents))
-    .sort((a, b) => b.score - a.score);
 }
