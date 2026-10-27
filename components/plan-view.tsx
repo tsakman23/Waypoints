@@ -5,6 +5,7 @@ import { Shuffle } from "lucide-react";
 import { ItemEditor } from "@/components/item-editor";
 import { TodaySortable } from "@/components/today-sortable";
 import type { Option, Plan, PlanDay, Session } from "@/lib/planner";
+import { reasonFor } from "@/lib/reasons";
 import type { Category, Dependency, Item } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -195,7 +196,11 @@ type RowProps = {
   large?: boolean;
 };
 
-/** One session: a category dot, its title, and "Due" when it's up against a deadline. */
+/**
+ * One session: a category dot, its title, and on the right "Due" when its interest
+ * is overdue. Today's rows say why in a few words when there's a reason (what the
+ * check-ins have taught the planner), and otherwise name the category.
+ */
 function SessionRow({ session, categoriesById, onOpen, grip, large = false }: RowProps) {
   const category = session.item.category_id ? categoriesById.get(session.item.category_id) : undefined;
   return (
@@ -215,10 +220,12 @@ function SessionRow({ session, categoriesById, onOpen, grip, large = false }: Ro
       >
         {category ? <span className={cn("wp-dot", !large && "size-2")} /> : <span className="size-2.5 flex-none" />}
         <span className="min-w-0 flex-1 truncate">{session.item.title}</span>
-        {session.due ? (
-          <span className="flex-none text-xs text-amber-300">Due</span>
+        {large ? (
+          <span className={cn("flex-none text-xs", session.due ? "text-amber-300" : "text-muted-foreground")}>
+            {reasonFor(session, category?.name) ?? category?.name}
+          </span>
         ) : (
-          large && category && <span className="flex-none text-xs text-muted-foreground">{category.name}</span>
+          session.due && <span className="flex-none text-xs text-amber-300">Due</span>
         )}
       </button>
       {large && <span className="w-1" />}

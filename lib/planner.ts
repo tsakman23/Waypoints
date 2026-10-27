@@ -1,7 +1,8 @@
 import { dependentsOf, isAvailable, prerequisitesOf } from "./graph.ts";
-import { sessionsOn, type LocalDay } from "./profile.ts";
+import { addDays, daysBetween, sessionsOn, type LocalDay } from "./profile.ts";
 import { scoreOf } from "./scoring.ts";
-import type { Category, Dependency, Item, Profile, WorkLog } from "./types.ts";
+import { learnIntervals, learnPreferences, preferenceOf, type LearnedInterval, type Preference } from "./learning.ts";
+import type { Category, Dependency, Item, PlanSnapshot, Profile, WorkLog } from "./types.ts";
 
 // The route planner: a quality-diversity schedule of work sessions for the
 // coming days, drawn only from active items (ideas aren't commitments yet).
@@ -34,10 +35,14 @@ export type Option = {
   item: Item;
   /** The plain value-for-effort score from scoring.ts. */
   score: number;
-  /** After the skill clock and the repeat and variety penalties. */
+  /** After your follow-through, the skill clock and the repeat and variety penalties. */
   adjusted: number;
   /** Its interest has gone untouched for at least its resurfacing interval. */
   due: boolean;
+  /** What the check-ins say about how often you do it when it's planned. */
+  preference: Preference;
+  /** Its interest's resurfacing interval, learned or hand-set; none when uncategorised. */
+  interval?: LearnedInterval;
 };
 
 /** One work session on one item. */
@@ -61,24 +66,12 @@ export type PlannerInput = {
   dependencies: Dependency[];
   categories: Category[];
   workLogs: WorkLog[];
+  /** Past days' plans, to learn from; none means nothing is learned. */
+  snapshots: PlanSnapshot[];
   profile: Profile;
   /** Today as the user sees it, from localDay(). */
   today: LocalDay;
 };
-
-// Dates ---------------------------------------------------------------------
-// Plain YYYY-MM-DD strings; arithmetic at noon UTC stays clear of DST edges.
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const noon = (date: string) => Date.parse(`${date}T12:00:00Z`);
-
-export function addDays(date: string, days: number): string {
-  return new Date(noon(date) + days * DAY_MS).toISOString().slice(0, 10);
-}
-
-export function daysBetween(from: string, to: string): number {
-  return Math.round((noon(to) - noon(from)) / DAY_MS);
-}
 
 // Skill clock -----------------------------------------------------------------
 
@@ -120,21 +113,29 @@ type Context = {
   available: Item[];
   /** Each available item's plain score. */
   scores: Map<string, number>;
-  intervals: Map<string, number>;
+  /** Each available item's learned follow-through. */
+  preferences: Map<string, Preference>;
+  /** Each category's resurfacing interval, learned or hand-set. */
+  intervals: Map<string, LearnedInterval>;
   touchedBefore: Map<string, string>;
 };
 
 function contextFor(input: PlannerInput): Context {
-  const { items, dependencies, categories, workLogs } = input;
+  const { items, dependencies, categories, workLogs, snapshots, today } = input;
   const itemsById = new Map(items.map((i) => [i.id, i]));
   const prereqs = prerequisitesOf(dependencies);
   const dependents = dependentsOf(dependencies);
   const available = items.filter((i) => i.status === "active" && isAvailable(i, itemsById, prereqs));
+  // Learned once per plan, as of today. With no history, every preference is
+  // 1 and every automatic interval is its preset.
+  const learning = { items, categories, workLogs, snapshots, today: today.date };
+  const prefs = learnPreferences(learning);
   return {
     input,
     available,
     scores: new Map(available.map((i) => [i.id, scoreOf(i, itemsById, dependents).score])),
-    intervals: new Map(categories.map((c) => [c.id, c.resurface_days])),
+    preferences: new Map(available.map((i) => [i.id, preferenceOf(prefs, i)])),
+    intervals: learnIntervals(learning),
     touchedBefore: lastTouchedByInterest(items, workLogs),
   };
 }
@@ -142,14 +143,15 @@ function contextFor(input: PlannerInput): Context {
 /** Rate one item for a session on `date`, given the interests of the sessions before it. */
 function rate(item: Item, date: string, history: string[], touched: Map<string, string>, ctx: Context): Option {
   const score = ctx.scores.get(item.id)!;
+  const preference = ctx.preferences.get(item.id)!;
   const interest = interestOf(item);
 
   // Skill clock: only for categorised items; uncategorised chores never resurface.
   const interval = ctx.intervals.get(interest);
   const last = touched.get(interest);
   const daysSince = last === undefined ? null : daysBetween(last, date);
-  const clock = interval === undefined ? 1 : clockFactor(daysSince, interval);
-  const due = interval !== undefined && (daysSince === null || daysSince >= interval);
+  const clock = interval === undefined ? 1 : clockFactor(daysSince, interval.days);
+  const due = interval !== undefined && (daysSince === null || daysSince >= interval.days);
 
   // Repeat penalty for the same interest in the last few sessions.
   let repeat = 1;
@@ -159,8 +161,8 @@ function rate(item: Item, date: string, history: string[], touched: Map<string, 
   // Variety penalty for every earlier session of this interest this week.
   const variety = PLAN.varietyPenalty ** history.filter((h) => h === interest).length;
 
-  const adjusted = score * clock * repeat * variety;
-  return { item, score, adjusted, due };
+  const adjusted = score * preference.multiplier * clock * repeat * variety;
+  return { item, score, adjusted, due, preference, interval };
 }
 
 /** Best first; ties broken by plain score, then title, so plans are stable. */

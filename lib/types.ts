@@ -15,8 +15,12 @@ export type Category = {
   name: string;
   color: string;
   skill_type: SkillType;
-  /** Days the interest can go untouched before the route brings it back. */
-  resurface_days: number;
+  /**
+   * Days the interest can go untouched before the route brings it back, when
+   * set by hand. null means automatic: the skill type's preset, adjusted by
+   * what the app learns from the work log.
+   */
+  resurface_days: number | null;
 };
 
 export type Item = {
@@ -46,6 +50,23 @@ export type Dependency = {
 export type WorkLog = {
   item_id: string;
   day: string;
+};
+
+/** One planned session in a snapshot: the item and the category it had that day. */
+export type SnapshotSession = {
+  item_id: string;
+  category_id: string | null;
+};
+
+/**
+ * What the planner suggested on one day, saved at that morning's check-in.
+ * `answered` means the next day's check-in reported what was actually done,
+ * so the day counts as evidence for learning.
+ */
+export type PlanSnapshot = {
+  day: string;
+  sessions: SnapshotSession[];
+  answered: boolean;
 };
 
 /** The setup wizard's answers and the check-in state. */

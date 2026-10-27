@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { applyTodayOrder, clockFactor, planRoutes, type PlannerInput, type Route } from "./planner.ts";
-import { DEFAULT_PROFILE } from "./profile.ts";
-import type { Category, Dependency, Item, Score, Status, WorkLog } from "./types.ts";
+import { addDays, DEFAULT_PROFILE } from "./profile.ts";
+import type { Category, Dependency, Item, PlanSnapshot, Score, Status, WorkLog } from "./types.ts";
 
 // Friday 9 October 2026. The default profile gives 1 session on weekdays and
 // 2 on Saturday and Sunday: Fri 1, Sat 2, Sun 2, Mon–Thu 1 each = 9 sessions.
@@ -22,8 +22,14 @@ const item = (
 /** Mark each item as worked on, on the given day. */
 const logs = (day: string, ...ids: string[]): WorkLog[] => ids.map((item_id) => ({ item_id, day }));
 
-function plan(items: Item[], categories: Category[], workLogs: WorkLog[] = [], dependencies: Dependency[] = []) {
-  const input: PlannerInput = { items, dependencies, categories, workLogs, profile: DEFAULT_PROFILE, today };
+function plan(
+  items: Item[],
+  categories: Category[],
+  workLogs: WorkLog[] = [],
+  dependencies: Dependency[] = [],
+  snapshots: PlanSnapshot[] = [],
+) {
+  const input: PlannerInput = { items, dependencies, categories, workLogs, snapshots, profile: DEFAULT_PROFILE, today };
   return planRoutes(input);
 }
 
@@ -172,7 +178,7 @@ test("today's sessions follow the user's saved order", () => {
   // Weekend: two sessions today (Saturday 10 October).
   const items = [item("a", "A", [5, 5, 1]), item("b", "B", [4, 4, 1]), item("c", "C", [3, 3, 1])];
   const input: PlannerInput = {
-    items, dependencies: [], categories: [cat("A"), cat("B"), cat("C")], workLogs: [],
+    items, dependencies: [], categories: [cat("A"), cat("B"), cat("C")], workLogs: [], snapshots: [],
     profile: DEFAULT_PROFILE, today: { date: "2026-10-10", weekday: 6 },
   };
   const { main } = planRoutes(input);
@@ -186,4 +192,38 @@ test("today's sessions follow the user's saved order", () => {
   // Stale ids are ignored and unmatched sessions kept, so nothing is lost.
   const partial = applyTodayOrder(main, ["gone", planned[1]]);
   assert.deepEqual(partial.days[0].sessions.map((s) => s.item.id), [planned[1], planned[0]]);
+});
+
+// Learning ------------------------------------------------------------------------
+
+test("with no history, automatic intervals plan exactly like their presets", () => {
+  // The same items under automatic categories and under hand-set ones at the
+  // preset values: with nothing to learn from, the plans must be identical.
+  const items = [item("run", "fit", [4, 3, 2]), item("piano", "keys", [5, 4, 3]), item("rust", "code", [4, 4, 4])];
+  const automatic: Category[] = [
+    { id: "fit", name: "fit", color: "#888888", skill_type: "fitness", resurface_days: null },
+    { id: "keys", name: "keys", color: "#888888", skill_type: "instrument", resurface_days: null },
+    { id: "code", name: "code", color: "#888888", skill_type: "technical", resurface_days: null },
+  ];
+  const presets = automatic.map((c, i) => ({ ...c, resurface_days: [7, 42, 28][i] }));
+  const learned = plan(items, automatic);
+  assert.deepEqual(learned.main.days.map((d) => d.sessions.map((s) => s.item.id)), plan(items, presets).main.days.map((d) => d.sessions.map((s) => s.item.id)));
+  for (const s of learned.main.days.flatMap((d) => d.sessions)) assert.equal(s.preference.multiplier, 1);
+});
+
+test("an item you keep skipping gives way to one you do", () => {
+  // Two identical items; "a" would win the tie on title. But for two weeks
+  // "a" was planned and skipped while "b" was done.
+  const items = [item("a", "A", [4, 4, 2]), item("b", "B", [4, 4, 2])];
+  const days = Array.from({ length: 14 }, (_, i) => addDays(today.date, -(14 - i)));
+  const snapshots: PlanSnapshot[] = days.map((day) => ({
+    day,
+    answered: true,
+    sessions: [{ item_id: "a", category_id: "A" }, { item_id: "b", category_id: "B" }],
+  }));
+  const workLogs = days.map((day) => ({ item_id: "b", day }));
+  const { main } = plan(items, [cat("A"), cat("B")], workLogs, [], snapshots);
+  const first = main.days[0].sessions[0];
+  assert.equal(first.item.id, "b");
+  assert.ok(first.preference.multiplier > 1);
 });

@@ -118,6 +118,7 @@ Google refuses to sign in inside embedded browsers (some in-app or IDE browser p
 |---|---|
 | `20261009_route_planning.sql` | skill type and interval on categories, the `work_logs` table, the `profiles` table |
 | `20261011_today_order.sql` | today's saved session order on profiles |
+| `20261027_learning.sql` | automatic (null) resurfacing intervals on categories, the `plan_snapshots` table |
 
 Run a migration **before** deploying code that needs it: the app asks for the new columns by name, and a missing column is an error.
 
