@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getData, getProfile, getWorkLogs } from "@/lib/data";
 import { wouldCreateCycle } from "@/lib/graph";
+import { planRoutes } from "@/lib/planner";
 import { createClient } from "@/lib/supabase/server";
 import { isValidTimeZone, localDay, yesterdayIn } from "@/lib/profile";
-import { SKILL_TYPES, type CategoryInput, type ItemInput, type Profile } from "@/lib/types";
+import { SKILL_TYPES, type CategoryInput, type ItemInput, type Profile, type SnapshotSession } from "@/lib/types";
 
 // Server actions can be called with any payload, not just what our forms
 // send. Row-level security still guarantees users can only touch their own
@@ -217,12 +219,54 @@ export async function submitCheckIn(itemIds: string[]): Promise<ActionResult> {
     if (error) return { error: error.message };
   }
 
-  const { error } = await supabase
-    .from("profiles")
-    .update({ last_check_in: day })
-    .eq("user_id", (await userIdOf(supabase)) ?? "");
+  const userId = (await userIdOf(supabase)) ?? "";
+  const { error } = await supabase.from("profiles").update({ last_check_in: day }).eq("user_id", userId);
   if (error) return { error: error.message };
+
+  // Yesterday's plan now has its answer, so it counts as evidence for learning.
+  // (No snapshot for that day, say you didn't open the app: nothing to update.)
+  const { error: answerError } = await supabase
+    .from("plan_snapshots")
+    .update({ answered: true })
+    .eq("user_id", userId)
+    .eq("day", day);
+  if (answerError) return { error: answerError.message };
+
+  const snapshotError = await snapshotToday();
+  if (snapshotError) return { error: snapshotError };
   return refresh();
+}
+
+/**
+ * Saves the plan the user is about to see this morning, so tomorrow's
+ * check-in can be compared with it. Planned with the same data and planner as
+ * Next up, after yesterday's answers are in. Only the first snapshot of a day
+ * is kept: it records what was suggested, not later changes.
+ */
+async function snapshotToday(): Promise<string | undefined> {
+  try {
+    const [{ items, categories, dependencies }, profile, workLogs] = await Promise.all([
+      getData(),
+      getProfile(),
+      getWorkLogs(),
+    ]);
+    if (!profile) return;
+    const today = localDay(new Date(), profile.timezone);
+    const { main } = planRoutes({ items, dependencies, categories, workLogs, profile, today });
+    const sessions: SnapshotSession[] = (main.days[0]?.sessions ?? []).map((s) => ({
+      item_id: s.item.id,
+      category_id: s.item.category_id,
+    }));
+
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("plan_snapshots")
+      .upsert({ day: today.date, sessions }, { onConflict: "user_id,day", ignoreDuplicates: true });
+    return error?.message;
+  } catch (error) {
+    // The loaders throw on database errors; report it like any other.
+    return error instanceof Error ? error.message : "Couldn't save today's plan.";
+  }
 }
 
 // Today's order -----------------------------------------------------------------
