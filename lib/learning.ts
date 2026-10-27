@@ -40,6 +40,8 @@ export const LEARN = {
   keenReasonAbove: 1.15,
   /** A plan reason mentions a learned interval only once the evidence has at least this weight. */
   intervalReasonWeight: 0.5,
+  /** The backtest reports nothing until there are this many answered days. */
+  backtestMinDays: 14,
 };
 
 // Follow-through -----------------------------------------------------------------
