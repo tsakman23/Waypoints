@@ -66,7 +66,8 @@ function skillError(input: Partial<CategoryInput>): string | undefined {
     return "Choose one of the listed skill types.";
   }
   const days = input.resurface_days;
-  if (days !== undefined && !(Number.isInteger(days) && days >= 1 && days <= 365)) {
+  // undefined: not being changed; null: automatic. Only a number needs checking.
+  if (days !== undefined && days !== null && !(Number.isInteger(days) && days >= 1 && days <= 365)) {
     return "The interval must be between 1 and 365 days.";
   }
 }

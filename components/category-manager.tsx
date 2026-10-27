@@ -73,10 +73,10 @@ function CategoryRow({ category, itemCount }: { category: Category; itemCount: n
     skillType !== category.skill_type ||
     days !== category.resurface_days;
 
-  /** Picking a type fills in its research-based interval; the number stays editable. */
+  /** Picking a type goes back to automatic: its research-based interval, adjusted as the app learns. */
   function chooseSkillType(type: SkillType) {
     setSkillType(type);
-    setDays(SKILL_PRESETS[type].resurfaceDays);
+    setDays(null);
   }
 
   function run(action: () => Promise<{ error?: string }>) {
@@ -154,16 +154,19 @@ function CategoryRow({ category, itemCount }: { category: Category; itemCount: n
           </SelectContent>
         </Select>
         <span>back after</span>
+        {/* Empty means automatic, with the preset as the placeholder; a number is your own. */}
         <Input
           type="number"
           min={1}
           max={365}
-          value={days}
-          onChange={(e) => setDays(Math.round(Number(e.target.value)) || 1)}
-          aria-label={`Days before ${category.name} comes back`}
+          value={days ?? ""}
+          placeholder={String(SKILL_PRESETS[skillType].resurfaceDays)}
+          onChange={(e) => setDays(e.target.value === "" ? null : Math.max(1, Math.round(Number(e.target.value))))}
+          aria-label={`Days before ${category.name} comes back (empty for automatic)`}
           className="h-8 w-16 text-center"
         />
         <span>days untouched</span>
+        {days === null && <span className="text-xs">· automatic</span>}
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
     </li>

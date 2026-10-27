@@ -12,12 +12,13 @@ create table categories (
   user_id        uuid not null default auth.uid() references auth.users on delete cascade,
   name           text not null,
   color          text not null,
-  -- A preset chosen in the app that fills in resurface_days, which the user
-  -- can then change: how long the interest can go untouched before the
-  -- route brings it back.
+  -- What kind of skill it is; picks the default for how long the interest
+  -- can go untouched before the route brings it back.
   skill_type     text not null default 'other'
                  check (skill_type in ('fitness', 'language', 'technical', 'instrument', 'creative', 'other')),
-  resurface_days smallint not null default 28 check (resurface_days between 1 and 365),
+  -- null: automatic (the skill type's preset, adjusted by what the app
+  -- learns). A number: set by the user, which always wins.
+  resurface_days smallint check (resurface_days between 1 and 365),
   created_at     timestamptz not null default now(),
   -- Lets items reference (id, user_id) together, so an item can't point at
   -- another user's category.
@@ -132,6 +133,31 @@ create table profiles (
 alter table profiles enable row level security;
 
 create policy "Owners manage their profile" on profiles
+  for all
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
+-- Plan snapshots --------------------------------------------------------------
+-- One row per user per day: the sessions the planner suggested that morning,
+-- saved when the daily check-in is answered. `answered` turns true when the
+-- next day's check-in reports what was actually done, and only answered days
+-- count as evidence: a day nobody asked about isn't a day you skipped.
+
+create table plan_snapshots (
+  day        date not null,
+  user_id    uuid not null default auth.uid() references auth.users on delete cascade,
+  -- [{ "item_id": uuid, "category_id": uuid | null }, ...], in plan order. The
+  -- category is the one the item had that day. Items deleted later are
+  -- ignored when learning.
+  sessions   jsonb not null default '[]' check (jsonb_typeof(sessions) = 'array'),
+  answered   boolean not null default false,
+  created_at timestamptz not null default now(),
+  primary key (user_id, day)
+);
+
+alter table plan_snapshots enable row level security;
+
+create policy "Owners manage their plan snapshots" on plan_snapshots
   for all
   using (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()));

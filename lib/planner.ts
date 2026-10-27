@@ -1,6 +1,7 @@
 import { dependentsOf, isAvailable, prerequisitesOf } from "./graph.ts";
 import { sessionsOn, type LocalDay } from "./profile.ts";
 import { scoreOf } from "./scoring.ts";
+import { SKILL_PRESETS } from "./skills.ts";
 import type { Category, Dependency, Item, Profile, WorkLog } from "./types.ts";
 
 // The route planner: a quality-diversity schedule of work sessions for the
@@ -134,7 +135,8 @@ function contextFor(input: PlannerInput): Context {
     input,
     available,
     scores: new Map(available.map((i) => [i.id, scoreOf(i, itemsById, dependents).score])),
-    intervals: new Map(categories.map((c) => [c.id, c.resurface_days])),
+    // A hand-set interval, or the skill type's preset when it's automatic.
+    intervals: new Map(categories.map((c) => [c.id, c.resurface_days ?? SKILL_PRESETS[c.skill_type].resurfaceDays])),
     touchedBefore: lastTouchedByInterest(items, workLogs),
   };
 }
